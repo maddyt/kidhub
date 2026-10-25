@@ -44,15 +44,12 @@ No email setup is needed. Accounts are created by invitation link, so Supabase n
 
 3. **Deploy.** Vercel's daily cron (in `vercel.json`) issues recurring invoices each morning.
 
-### 3. Load the demo (optional, recommended)
-On your computer:
-```bash
-git clone https://github.com/maddyt/kidhub && cd kidhub
-npm install
-cp .env.example .env.local     # fill in the same Supabase values + DEMO_PASSWORD
-npm run seed:demo
-```
-The login page now shows one-click buttons for Owner, Director, Teacher, Parent and Grandparent at the fictional "Little Oaks Learning" (two campuses, 30 children, a live-looking day with planted problems for the alerts to catch). Re-running replaces the demo. `npm run seed:demo -- --remove` deletes it.
+### 3. Load the demo (optional, recommended, no terminal needed)
+Open `https://YOUR-APP.vercel.app/demo/setup`, enter your `OWNER_SIGNUP_CODE`, and click **Create / reset demo** (about 20 seconds). It needs `NEXT_PUBLIC_DEMO_MODE=true` and `DEMO_PASSWORD` set in Vercel.
+
+The login page then shows one-click buttons for Owner, Director, Teacher, Parent and Grandparent at the fictional "Little Oaks Learning" (two campuses, 30 children, a realistic day with planted problems for the alerts to catch). The demo is dated the day you create it; click **Create / reset demo** again any time for a fresh day. **Remove demo** deletes it. It never touches real schools.
+
+(Developers can do the same from a terminal with `npm run seed:demo`.)
 
 ### 4. Set up the real school
 1. Go to `/signup`, enter the `OWNER_SIGNUP_CODE`, and create the organization and first campus.

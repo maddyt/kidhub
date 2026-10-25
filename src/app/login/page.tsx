@@ -34,7 +34,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <div className="card">
           <h2 className="h2">Try the demo</h2>
           <p className="muted mb-3">Sign in as a sample user at the fictional “Little Oaks Learning” schools.</p>
-          {demo === 'missing' && <Notice tone="amber">Demo accounts not found. Run <code>npm run seed:demo</code> first.</Notice>}
+          {demo === 'missing' && <Notice tone="amber">Demo accounts not found yet. <Link href="/demo/setup" className="underline">Set up demo data</Link> first (takes about 20 seconds).</Notice>}
+          {demo === 'ready' && <Notice>Demo data is ready. Pick a role below.</Notice>}
           <form action={demoLogin} className="mt-2 grid gap-2">
             {DEMO_ACCOUNTS.map((a) => (
               <button key={a.key} name="who" value={a.key} className="btn-secondary justify-between text-left">
@@ -43,6 +44,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               </button>
             ))}
           </form>
+          <p className="muted mt-3 text-center text-xs"><Link href="/demo/setup" className="underline">Set up or reset demo data</Link></p>
         </div>
       )}
     </div>
