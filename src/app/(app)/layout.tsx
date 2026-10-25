@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { requireUser } from '@/lib/context.ts';
 import { AppNav, type NavItem } from '@/components/AppNav.tsx';
-import { switchSchool, signOut } from '../actions.ts';
+import { signOut } from '../actions.ts';
+import { SchoolSwitcher } from '@/components/SchoolSwitcher.tsx';
 import { Avatar } from '@/components/ui.tsx';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -45,12 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span aria-hidden>🌳</span> KidHub
           </Link>
           {ctx.schools.length > 1 && ctx.school && (
-            <form action={switchSchool} className="md:mt-3">
-              <select name="school_id" defaultValue={ctx.school.id} className="input py-1.5 text-xs" aria-label="School">
-                {ctx.schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-              <button className="btn-secondary btn-sm mt-1 w-full">Switch school</button>
-            </form>
+            <SchoolSwitcher schools={ctx.schools.map((s) => ({ id: s.id, name: s.name }))} current={ctx.school.id} />
           )}
           {ctx.schools.length === 1 && ctx.school && <div className="muted md:mt-2">{ctx.school.name}</div>}
         </div>
