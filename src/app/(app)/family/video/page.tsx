@@ -23,7 +23,7 @@ export default async function FamilyVideo() {
       {!approved && (schedule ?? []).length > 0 && <Notice tone="amber">Your video access is waiting for approval from the school.</Notice>}
       {unique.length === 0 ? <Empty>No cameras are live for you right now.</Empty> : (
         <div className="grid gap-4 md:grid-cols-2">{unique.map((f) => (
-          <VideoPlayer key={f.camera_id} src={f.stream_url} title={`${f.camera_name}${f.classroom_name ? ` · ${f.classroom_name}` : ''} · until ${String(f.window_ends).slice(0, 5)}`} />
+          <VideoPlayer key={f.camera_id} cameraId={f.camera_id} title={`${f.camera_name}${f.classroom_name ? ` · ${f.classroom_name}` : ''} · until ${String(f.window_ends).slice(0, 5)}`} />
         ))}</div>
       )}
       {(schedule ?? []).length > 0 && (

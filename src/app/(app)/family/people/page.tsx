@@ -66,7 +66,7 @@ export default async function FamilyPeople() {
             <ActionForm action={inviteSubUser} className="grid gap-2 sm:grid-cols-3">
               <input type="hidden" name="child_id" value={k.id} />
               <Field label="Relationship"><input name="relationship" placeholder="e.g. grandmother" className="input" /></Field>
-              <Field label="Email (optional)"><input name="email" type="email" className="input" /></Field>
+              <Field label="Their email"><input name="email" type="email" required className="input" /></Field>
               <div className="flex items-end"><SubmitButton className="btn-secondary w-full">Create link</SubmitButton></div>
             </ActionForm>
             <p className="muted mt-1 text-xs">They will see live video only (no reports, messages or billing), after the school approves them.</p>

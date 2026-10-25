@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { supabaseServer } from './supabase/server.ts';
+import { aalOf, adminMfaRequired, isDemoAccount } from './security/mfa.ts';
 
 export type Role = 'owner' | 'director' | 'teacher';
 
@@ -27,6 +28,14 @@ export interface Ctx {
   /** Children this user is a guardian of (any access level). */
   guardianOf: { child_id: string; access: 'full' | 'video_only' }[];
   isFamily: boolean;
+  mfa: {
+    /** The user has a verified authenticator app. */
+    enabled: boolean;
+    /** Signed in with password only, but has an authenticator: must enter a code before anything else. */
+    needsChallenge: boolean;
+    /** Owner/director without an authenticator: must set one up (policy, see security/mfa.ts). */
+    needsSetup: boolean;
+  };
 }
 
 export const SCHOOL_COOKIE = 'kh_school';
@@ -35,6 +44,10 @@ export const getContext = cache(async (): Promise<Ctx | null> => {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  // getUser() above verified the user with Supabase; the session token is only read for its assurance level.
+  const { data: { session } } = await supabase.auth.getSession();
+  const mfaEnabled = (user.factors ?? []).some((f) => f.status === 'verified');
+  const needsChallenge = mfaEnabled && aalOf(session?.access_token) !== 'aal2';
 
   const [profile, owners, staff, schools, guardians] = await Promise.all([
     supabase.from('profiles').select('full_name, email').eq('id', user.id).maybeSingle(),
@@ -69,12 +82,21 @@ export const getContext = cache(async (): Promise<Ctx | null> => {
     ownedOrgIds,
     guardianOf,
     isFamily: guardianOf.length > 0,
+    mfa: {
+      enabled: mfaEnabled,
+      needsChallenge,
+      needsSetup: !mfaEnabled && adminMfaRequired() && !isDemoAccount(user.email)
+        && staffSchools.some((s) => s.role === 'owner' || s.role === 'director'),
+    },
   };
 });
 
 export async function requireUser(): Promise<Ctx> {
   const ctx = await getContext();
   if (!ctx) redirect('/login');
+  // Until the second step is done, the database hides staff data anyway (mfa_ok() in 0002_security.sql).
+  if (ctx.mfa.needsChallenge) redirect('/mfa');
+  if (ctx.mfa.needsSetup) redirect('/mfa/setup');
   return ctx;
 }
 

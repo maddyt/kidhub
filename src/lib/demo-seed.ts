@@ -21,7 +21,12 @@ function check<T>(r: { data: T; error: any }, what: string): NonNullable<T> {
 /** Deletes the demo organization (cascading to all its data) and the demo accounts. */
 export async function removeDemo(db: SupabaseClient) {
   const { data: orgs } = await db.from('organizations').select('id').eq('name', ORG);
-  for (const o of orgs ?? []) check(await db.from('organizations').delete().eq('id', o.id), 'delete org');
+  const orgIds = (orgs ?? []).map((o) => o.id);
+  const { data: schools } = orgIds.length ? await db.from('schools').select('id').in('org_id', orgIds) : { data: [] };
+  for (const id of orgIds) check(await db.from('organizations').delete().eq('id', id), 'delete org');
+  // Audit history of fictional demo data isn't worth keeping (table exists once 0002_security.sql is applied).
+  const schoolIds = (schools ?? []).map((x) => x.id);
+  if (schoolIds.length) await db.from('audit_events').delete().in('school_id', schoolIds);
   const emails = new Set([...DEMO_ACCOUNTS.map((a) => a.email), ...EXTRA_STAFF.map((s) => s.email)]);
   for (let page = 1; page < 20; page++) {
     const { data } = await db.auth.admin.listUsers({ page, perPage: 1000 });

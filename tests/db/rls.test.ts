@@ -92,7 +92,8 @@ test('video feed requires center approval and an open window', async () => {
   await as(db, U.parentA, async (q) => {
     const feeds = (await q<any>('select * from my_video_feeds()')).rows;
     assert.equal(feeds.length, 1);
-    assert.equal(feeds[0].stream_url, 'https://example.test/a.m3u8');
+    assert.equal(feeds[0].camera_id, CAM_A);
+    assert.equal(feeds[0].stream_url, undefined, 'the camera URL never leaves the server');
   });
   await as(db, U.grandma, async (q) => {
     assert.equal((await q('select * from my_video_feeds()')).rows.length, 0, 'not yet approved');
@@ -164,10 +165,12 @@ test('profiles: names visible only to people who share a school', async () => {
 
 test('invitations: guardians may only invite video-only sub-users for their own child', async () => {
   await as(db, U.parentA, async (q) => {
-    await q(`insert into invitations (school_id, role, child_id, access, created_by) values ($1, 'guardian', $2, 'video_only', $3)`, [SA, KID_A, U.parentA]);
-    await assert.rejects(q(`insert into invitations (school_id, role, child_id, access, created_by) values ($1, 'guardian', $2, 'full', $3)`, [SA, KID_A, U.parentA]));
-    await assert.rejects(q(`insert into invitations (school_id, role, created_by) values ($1, 'teacher', $2)`, [SA, U.parentA]));
-    await assert.rejects(q(`insert into invitations (school_id, role, child_id, access, created_by) values ($1, 'guardian', $2, 'video_only', $3)`, [SB, KID_B, U.parentA]));
+    const ins = (school: string, role: string, child: string | null, access: string) =>
+      q(`insert into invitations (school_id, role, child_id, access, created_by, email) values ($1, $2, $3, $4, $5, 'g@test')`, [school, role, child, access, U.parentA]);
+    await ins(SA, 'guardian', KID_A, 'video_only');
+    await assert.rejects(ins(SA, 'guardian', KID_A, 'full'));
+    await assert.rejects(ins(SA, 'teacher', null, 'full'));
+    await assert.rejects(ins(SB, 'guardian', KID_B, 'video_only'));
   });
 });
 
@@ -188,11 +191,11 @@ test('accepting an invitation links the account, once, and respects the invited 
 
 test('staff invitation grants the school role', async () => {
   const { rows } = await db.query<any>(
-    `insert into invitations (school_id, role, created_by) values ($1, 'teacher', $2) returning token`, [SB, U.owner]);
+    `insert into invitations (school_id, role, created_by, email) values ($1, 'teacher', $2, 'grandma@test') returning token`, [SB, U.owner]);
   await as(db, U.grandma, async (q) => {
     await q('select accept_invitation($1)', [rows[0].token]);
     assert.ok(ids((await q('select id from schools')).rows).includes(SB));
-  });
+  }, 'grandma@test');
 });
 
 test('create_organization is server-only', async () => {

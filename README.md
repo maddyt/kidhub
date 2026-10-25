@@ -22,10 +22,12 @@ You need free accounts on **GitHub**, **Supabase** and **Vercel**.
 
 ### 1. Database (Supabase)
 1. Create a project at [supabase.com](https://supabase.com) (free tier is fine). Pick a region near the schools.
-2. Open **SQL Editor → New query**, paste the whole of [`supabase/migrations/0001_kidhub.sql`](supabase/migrations/0001_kidhub.sql), and click **Run**.
+2. Open **SQL Editor → New query**, paste the whole of [`supabase/migrations/0001_kidhub.sql`](supabase/migrations/0001_kidhub.sql), and click **Run**. Then do the same with [`supabase/migrations/0002_security.sql`](supabase/migrations/0002_security.sql) (security hardening: two-step verification enforcement, audit log, rate limiting).
 3. From **Project Settings → API**, copy the **Project URL**, the **anon public** key and the **service_role** key.
 
-No email setup is needed. Accounts are created by invitation link, so Supabase never has to send mail.
+No email setup is needed to get started. Accounts are created by invitation links that are locked to the invited person's email address.
+
+**For "Forgot password?" emails** (recommended before real use): in Supabase go to **Authentication → Emails → SMTP settings** and connect a sending service (e.g. Resend or Postmark). Supabase's built-in mailer only delivers to your own team's addresses. Also set **Authentication → URL Configuration → Site URL** to your Vercel address and add `https://YOUR-APP.vercel.app/auth/callback` under Redirect URLs.
 
 ### 2. Deploy (Vercel)
 1. In Vercel, **Add New → Project → Import** this GitHub repo. The defaults are correct for Next.js.
@@ -36,7 +38,8 @@ No email setup is needed. Accounts are created by invitation link, so Supabase n
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | service_role key (server only) |
-| `OWNER_SIGNUP_CODE` | any secret phrase; needed to create an organization at `/signup` |
+| `OWNER_SIGNUP_CODE` | any long secret phrase; needed to create an organization at `/signup` |
+| `REQUIRE_ADMIN_MFA` | `true` (owners and directors must use an authenticator app) |
 | `CRON_SECRET` | any long random string (protects the daily billing job) |
 | `NEXT_PUBLIC_DEMO_MODE` | `true` while trying it out, `false` for real use |
 | `DEMO_PASSWORD` | password for the demo accounts |
@@ -82,6 +85,21 @@ These rules are covered by tests that run the real migration (`tests/db/rls.test
 
 **The AI assistant only answers and flags.** It sees a snapshot of data the signed-in admin can already see, and its instructions forbid it from making decisions. Alerts are deterministic rules (`src/lib/domain/alerts.ts`), so each one can say exactly why it fired.
 
+### Security controls (Phase 1)
+
+| Control | What it does |
+|---|---|
+| Two-step verification | Owners and directors must add an authenticator app (anyone can opt in under **Account & security**). The database itself refuses staff data to a session that skipped the second step, so it can't be bypassed by calling the API directly. Owners can reset a staff member's authenticator from **Staff** if a phone is lost. |
+| Rate limiting | Sign-in (per network and per email), sign-up, invitations, password reset, demo setup, AI assistant and video links. About 10 wrong passwords lock an account for 15 minutes. |
+| Email-locked invitations | Every invitation names an email address; the account is created for that address only. |
+| Video links | Families never receive a camera's source URL. The app re-checks permission and issues a playback link every ~10 minutes; with Mux signed playback (`mux:PLAYBACK_ID` + signing keys) the link itself expires. Every view is logged. |
+| Photo links | Private photos use links that expire after 10 minutes. |
+| Audit log | Changes to children, families, pickups, attendance, billing, staff roles, cameras, invitations and settings, plus video views, are recorded with who and when (**Audit log** in the menu). Entries can't be edited or deleted. |
+| Security headers | Content-Security-Policy with per-request nonces, HSTS, no framing, no MIME sniffing, restricted browser features. |
+| Account deletion | Deleting a person keeps the school's records (shown as a former user). |
+
+Still to do before scaling (see [`docs/COMMERCIALIZATION.md`](docs/COMMERCIALIZATION.md)): paid Supabase plan with point-in-time recovery, separate staging and production projects, a production deployment with demo mode off, an independent penetration test, and SOC 2.
+
 ---
 
 ## Live video
@@ -96,7 +114,7 @@ Before turning video on for real, check your state's licensing rules on classroo
 
 ```bash
 npm test          # domain logic: timers, ratios, reports, billing math, alerts (no network)
-npm run test:db   # row-level security against the real migration, in-process Postgres (PGlite)
+npm run test:db   # row-level security, MFA enforcement, audit log, rate limiting: real migrations on in-process Postgres (PGlite)
 npm run typecheck
 npm run build
 ```
@@ -119,7 +137,7 @@ Stack: Next.js 15 (App Router, server actions), Supabase (Postgres, auth, storag
 
 **Built and tested:** attendance with pickup validation, care log and timers, daily reports, milestones/portfolio, enrollment and waitlist, medical/allergy info, staff clock-in with per-room ratios, timesheet CSV for payroll, certifications, recurring and split billing, year-end statements, announcements, realtime messaging, photo approval, camera schedules with family approval, multi-school owner view, alerts, and the AI assistant.
 
-**Verified:** typecheck, production build, 13 unit tests, 15 database policy tests. **Not yet verified here:** a run against a live Supabase project. The first `seed:demo` against your project is the end-to-end check; please report anything that fails.
+**Verified:** typecheck, production build, 16 unit tests, 23 database tests (policies, MFA enforcement, audit, rate limits), and browser walkthroughs of every role against Postgres 16 + PostgREST, both before and after `0002_security.sql` is applied. CI runs the automated checks on every push. **Not verifiable here:** your live Supabase project and email delivery.
 
 **Not in this version (from the product doc):**
 - Online payments (Stripe card/ACH). Invoices are marked paid by the office for now.

@@ -5,6 +5,8 @@ export const metadata: Metadata = {
   title: { default: 'KidHub', template: '%s · KidHub' },
   description: 'One app for childcare centers: attendance, daily reports, billing, messaging and live video.',
 };
+// Every page renders per request so Next.js can stamp the per-request CSP nonce (see middleware.ts) on its scripts.
+export const dynamic = 'force-dynamic';
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#2F6F5E' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

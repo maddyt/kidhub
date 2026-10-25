@@ -16,7 +16,7 @@ export default function SignupPage() {
         <ActionForm action={signupOwner} className="grid gap-3">
           <Field label="Your name"><input name="full_name" required className="input" /></Field>
           <Field label="Email"><input name="email" type="email" required className="input" /></Field>
-          <Field label="Password (8+ characters)"><input name="password" type="password" minLength={8} required className="input" /></Field>
+          <Field label="Password (10+ characters)"><input name="password" type="password" minLength={10} required autoComplete="new-password" className="input" /></Field>
           <Field label="Organization name"><input name="org" required placeholder="e.g. Sunrise Early Learning" className="input" /></Field>
           <Field label="First school / campus"><input name="school" required placeholder="e.g. Main Street campus" className="input" /></Field>
           <Field label="Time zone">

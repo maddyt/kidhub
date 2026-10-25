@@ -8,7 +8,7 @@ import { PageHeader, Badge, Field, Empty } from '@/components/ui.tsx';
 import { ActionForm } from '@/components/ActionForm.tsx';
 import { SubmitButton } from '@/components/SubmitButton.tsx';
 import { CopyField } from '@/components/CopyField.tsx';
-import { clockIn, clockOut, changeRoom, addCert, deleteCert, inviteStaff, setStaffRole } from './actions.ts';
+import { clockIn, clockOut, changeRoom, addCert, deleteCert, inviteStaff, setStaffRole, resetStaffMfa } from './actions.ts';
 import { deleteInvite } from '../children/actions.ts';
 
 export const metadata = { title: 'Staff' };
@@ -143,7 +143,10 @@ export default async function StaffPage() {
                   <input type="hidden" name="school_id" value={ctx.school.id} /><input type="hidden" name="profile_id" value={p.id} />
                   <select name="role" defaultValue={p.role} className="input w-32 py-1 text-xs" aria-label="Role"><option value="teacher">Teacher</option><option value="director">Director</option><option value="remove">Remove</option></select>
                   <button className="btn-secondary btn-sm">Update</button>
-                </form>)}</td></tr>
+                </form>)}
+                {ctx.role === 'owner' && p.role !== 'owner' && p.id !== ctx.userId && (
+                  <form action={resetStaffMfa} className="ml-2 inline"><input type="hidden" name="profile_id" value={p.id} />
+                    <button className="text-xs text-muted hover:underline" title="Use when someone loses the phone with their authenticator app">reset 2-step</button></form>)}</td></tr>
           ))}</tbody></table>
           {(invites ?? []).map((inv: any) => (
             <div key={inv.id} className="mt-3 rounded-lg bg-canvas p-2">
@@ -154,7 +157,7 @@ export default async function StaffPage() {
           ))}
           <ActionForm action={inviteStaff} className="mt-3 grid gap-2 sm:grid-cols-4">
             <Field label="Role"><select name="role" className="input"><option value="teacher">Teacher</option><option value="director">Director</option></select></Field>
-            <Field label="Email (optional)" className="sm:col-span-2"><input name="email" type="email" className="input" /></Field>
+            <Field label="Their email (only they can use the link)" className="sm:col-span-2"><input name="email" type="email" required className="input" /></Field>
             <div className="flex items-end"><SubmitButton className="btn-primary w-full">Create invite link</SubmitButton></div>
           </ActionForm>
         </section>

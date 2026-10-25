@@ -1,6 +1,7 @@
 'use server';
 import { redirect } from 'next/navigation';
 import { supabaseAdmin, supabaseServer } from '@/lib/supabase/server.ts';
+import { allow, clientIp, LIMITS, TOO_MANY } from '@/lib/security/rate-limit.ts';
 import type { ActionResult } from '@/components/ActionForm.tsx';
 
 async function accept(token: string): Promise<ActionResult> {
@@ -11,6 +12,9 @@ async function accept(token: string): Promise<ActionResult> {
 }
 
 export async function acceptAsCurrentUser(_: ActionResult, form: FormData): Promise<ActionResult> {
+  const supabase = await supabaseServer();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!(await allow(`accept:${user?.id ?? await clientIp()}`, LIMITS.acceptUser))) return { error: TOO_MANY };
   return accept(String(form.get('token')));
 }
 
@@ -19,15 +23,17 @@ export async function joinWithNewAccount(_: ActionResult, form: FormData): Promi
   const token = String(form.get('token'));
   const full_name = String(form.get('full_name') ?? '').trim();
   const password = String(form.get('password') ?? '');
-  let email = String(form.get('email') ?? '').trim().toLowerCase();
 
+  if (!(await allow(`join:ip:${await clientIp()}`, LIMITS.joinIp))) return { error: TOO_MANY };
   const supabase = await supabaseServer();
   const { data: preview } = await supabase.rpc('invitation_preview', { p_token: token });
   const inv = preview?.[0];
   if (!inv || inv.expired || inv.accepted) return { error: 'This invitation is no longer valid. Ask the school for a new link.' };
-  if (inv.email) email = String(inv.email).toLowerCase();
-  if (!full_name || !email) return { error: 'Please enter your name and email.' };
-  if (password.length < 8) return { error: 'Use a password of at least 8 characters.' };
+  // The account is always created for the address the school invited; whoever holds the link can't pick another.
+  if (!inv.email) return { error: 'This invitation link is out of date. Ask the school for a new one.' };
+  const email = String(inv.email).toLowerCase();
+  if (!full_name) return { error: 'Please enter your name.' };
+  if (password.length < 10) return { error: 'Use a password of at least 10 characters.' };
 
   const created = await supabaseAdmin().auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name } });
   if (created.error) {

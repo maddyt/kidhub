@@ -8,8 +8,8 @@ import { login, demoLogin } from './actions.ts';
 
 export const metadata = { title: 'Sign in' };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; demo?: string }> }) {
-  const { next, demo } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; demo?: string; reset?: string }> }) {
+  const { next, demo, reset } = await searchParams;
   const configured = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-4">
@@ -18,6 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <h1 className="h1 mt-2">KidHub</h1>
         <p className="muted">Attendance, daily reports, billing, messaging and live video in one app.</p>
       </div>
+      {reset === 'failed' && <Notice tone="amber">That reset link is invalid or has expired. Request a new one.</Notice>}
       {!configured && <Notice tone="red">Supabase is not configured yet. Add the environment variables from <code>.env.example</code>.</Notice>}
       <div className="card">
         <ActionForm action={login} className="space-y-3">
@@ -25,6 +26,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <Field label="Email"><input name="email" type="email" required autoComplete="email" className="input" /></Field>
           <Field label="Password"><input name="password" type="password" required autoComplete="current-password" className="input" /></Field>
           <SubmitButton className="btn-primary w-full" pendingText="Signing in…">Sign in</SubmitButton>
+          <p className="text-right text-xs"><Link href="/forgot" className="text-muted underline">Forgot password?</Link></p>
         </ActionForm>
         <p className="muted mt-3 text-center text-xs">
           Got an invitation link? Open it to create your account. Setting up a new school group? <Link href="/signup" className="text-brand underline">Create an organization</Link>.
@@ -35,6 +37,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <h2 className="h2">Try the demo</h2>
           <p className="muted mb-3">Sign in as a sample user at the fictional “Little Oaks Learning” schools.</p>
           {demo === 'missing' && <Notice tone="amber">Demo accounts not found yet. <Link href="/demo/setup" className="underline">Set up demo data</Link> first (takes about 20 seconds).</Notice>}
+          {demo === 'busy' && <Notice tone="amber">Too many demo sign-ins from your network. Please wait a few minutes.</Notice>}
           {demo === 'ready' && <Notice>Demo data is ready. Pick a role below.</Notice>}
           <form action={demoLogin} className="mt-2 grid gap-2">
             {DEMO_ACCOUNTS.map((a) => (

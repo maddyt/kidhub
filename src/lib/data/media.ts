@@ -1,12 +1,14 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/** Short-lived signed URLs for private photos (keyed by storage path). */
+export const PHOTO_URL_TTL_SECONDS = 10 * 60;
+
+/** Short-lived (10 minute) signed URLs for private photos, keyed by storage path. Pages re-sign on each load. */
 export async function signPhotos(supabase: SupabaseClient, paths: (string | null | undefined)[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths.filter((p): p is string => !!p))];
   const out = new Map<string, string>();
   if (!unique.length) return out;
-  const { data } = await supabase.storage.from('media').createSignedUrls(unique, 60 * 60);
+  const { data } = await supabase.storage.from('media').createSignedUrls(unique, PHOTO_URL_TTL_SECONDS);
   for (const d of data ?? []) if (d.signedUrl && d.path) out.set(d.path, d.signedUrl);
   return out;
 }

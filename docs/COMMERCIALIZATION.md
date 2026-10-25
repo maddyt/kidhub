@@ -72,6 +72,8 @@ These come from a review of this repository. Each is covered in detail in §9.
 10. **RLS helper functions run per row.** That's fine at pilot scale, but slow at thousands of children (see §11).
 11. **The Supabase free tier pauses inactive projects** and has no point-in-time recovery. That's unsuitable for production data.
 
+> **Update: code fixes shipped** (see `supabase/migrations/0002_security.sql` and the README's *Security controls*). Done: #1 (email-locked invitations), #2 (rate limiting), #3 (sign-up code is now rate-limited and compared in constant time; full self-serve sign-up with email verification is still Phase 4), #4 (server-issued, re-checked playback links; Mux signed URLs that expire), #5 (10-minute photo links), #6 (audit log), #7 (two-step verification, required for owners and directors and enforced in the database), #8 (CSP with nonces + security headers). Partly done: #9 (the demo is rate-limited and walled off from real data, but a separate production deployment with demo mode off is still needed), #10 (key indexes added; policy rewrites remain). Still open: #11 (paid Supabase plan: an account action, not code). Also added: password reset by email (needs SMTP configured), account deletion that keeps school records, CI on every push.
+
 ---
 
 ## 2. The opportunity and positioning

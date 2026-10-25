@@ -20,7 +20,9 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   return (
     <div className="mx-auto max-w-md p-4 py-10">
       <div className="mb-4 text-center text-4xl" aria-hidden>🌳</div>
-      {!inv || inv.expired || inv.accepted ? (
+      {inv && !inv.email && !inv.accepted ? (
+        <Notice tone="amber">This invitation link is out of date. Ask the school to send you a new one.</Notice>
+      ) : !inv || inv.expired || inv.accepted ? (
         <Notice tone="amber">This invitation link is {inv?.accepted ? 'already used' : inv?.expired ? 'expired' : 'not valid'}. Ask the school for a new one.</Notice>
       ) : (
         <div className="card space-y-4">
@@ -39,11 +41,8 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
               <ActionForm action={joinWithNewAccount} className="space-y-3">
                 <input type="hidden" name="token" value={token} />
                 <Field label="Your name"><input name="full_name" required className="input" /></Field>
-                <Field label="Email">
-                  {inv.email ? <input name="email" value={inv.email} readOnly className="input bg-canvas" />
-                    : <input name="email" type="email" required className="input" />}
-                </Field>
-                <Field label="Create a password (8+ characters)"><input name="password" type="password" minLength={8} required className="input" /></Field>
+                <Field label="Email (from your invitation)"><input value={inv.email ?? ''} readOnly className="input bg-canvas" /></Field>
+                <Field label="Create a password (10+ characters)"><input name="password" type="password" minLength={10} required autoComplete="new-password" className="input" /></Field>
                 <SubmitButton className="btn-primary w-full" pendingText="Creating account…">Create account & join</SubmitButton>
               </ActionForm>
               <p className="muted text-center text-xs">

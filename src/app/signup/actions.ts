@@ -2,13 +2,16 @@
 import { redirect } from 'next/navigation';
 import { supabaseAdmin, supabaseServer } from '@/lib/supabase/server.ts';
 import { env } from '@/lib/env.ts';
+import { allow, clientIp, LIMITS, TOO_MANY } from '@/lib/security/rate-limit.ts';
+import { safeEqual, EMAIL_RE } from '@/lib/security/compare.ts';
 import type { ActionResult } from '@/components/ActionForm.tsx';
 
 /** Create an owner account plus the organization and its first school. */
 export async function signupOwner(_: ActionResult, form: FormData): Promise<ActionResult> {
   const code = env.signupCode();
   if (!code) return { error: 'Sign-up is disabled. Set OWNER_SIGNUP_CODE on the server to enable it.' };
-  if (String(form.get('code') ?? '') !== code) return { error: 'That sign-up code is not correct.' };
+  if (!(await allow(`signup:ip:${await clientIp()}`, LIMITS.signupIp))) return { error: TOO_MANY };
+  if (!safeEqual(String(form.get('code') ?? ''), code)) return { error: 'That sign-up code is not correct.' };
 
   const full_name = String(form.get('full_name') ?? '').trim();
   const email = String(form.get('email') ?? '').trim().toLowerCase();
@@ -17,7 +20,8 @@ export async function signupOwner(_: ActionResult, form: FormData): Promise<Acti
   const school = String(form.get('school') ?? '').trim();
   const tz = String(form.get('timezone') ?? 'America/Los_Angeles');
   if (!full_name || !email || !org || !school) return { error: 'Please fill in every field.' };
-  if (password.length < 8) return { error: 'Use a password of at least 8 characters.' };
+  if (!EMAIL_RE.test(email)) return { error: 'Enter a valid email address.' };
+  if (password.length < 10) return { error: 'Use a password of at least 10 characters.' };
 
   const admin = supabaseAdmin();
   // email_confirm: true lets people sign in immediately without Supabase sending email.

@@ -3,7 +3,7 @@
 // the storage schema and the realtime publication.
 import { PGlite } from '@electric-sql/pglite';
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const SUPABASE_STUB = `
 create role anon nologin;
@@ -15,6 +15,7 @@ create function auth.jwt() returns jsonb language sql stable as
   $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
   $$ select nullif(auth.jwt() ->> 'sub', '')::uuid $$;
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null, factor_type text default 'totp', status text not null default 'unverified', friendly_name text, secret text);
 grant usage on schema auth to anon, authenticated, service_role;
 create schema storage;
 create table storage.buckets (id text primary key, name text, public boolean);
@@ -24,19 +25,25 @@ create function storage.foldername(name text) returns text[] language sql immuta
   $$ select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1] $$;
 grant usage on schema storage to anon, authenticated, service_role;
 create publication supabase_realtime;
+-- Like Supabase: API roles get privileges on objects as they are created, so a migration's
+-- own REVOKE statements (e.g. on the audit log) stay in effect.
+grant usage on schema public to anon, authenticated, service_role;
+alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 `;
 
 const GRANTS = `
-grant usage on schema public to anon, authenticated, service_role;
-grant all on all tables in schema public to anon, authenticated, service_role;
 grant all on storage.objects to authenticated, service_role;
 `;
 
 export async function freshDb() {
   const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(SUPABASE_STUB);
-  const sql = readFileSync(new URL('../../supabase/migrations/0001_kidhub.sql', import.meta.url), 'utf8');
-  await db.exec(sql);
+  const dir = new URL('../../supabase/migrations/', import.meta.url);
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.sql')).sort()) {
+    await db.exec(readFileSync(new URL(f, dir), 'utf8'));
+  }
   await db.exec(GRANTS);
   return db;
 }
@@ -44,8 +51,8 @@ export async function freshDb() {
 export type Db = Awaited<ReturnType<typeof freshDb>>;
 
 /** Run `fn` as an authenticated user (RLS applies), like a request carrying that user's JWT. */
-export async function as<T>(db: Db, userId: string | null, fn: (q: Db['query']) => Promise<T>, email?: string): Promise<T> {
-  const claims = userId ? JSON.stringify({ sub: userId, email: email ?? `${userId}@test`, role: 'authenticated' }) : '';
+export async function as<T>(db: Db, userId: string | null, fn: (q: Db['query']) => Promise<T>, email?: string, aal: 'aal1' | 'aal2' = 'aal1'): Promise<T> {
+  const claims = userId ? JSON.stringify({ sub: userId, email: email ?? `${userId}@test`, role: 'authenticated', aal }) : '';
   await db.exec(`set role ${userId ? 'authenticated' : 'anon'}`);
   await db.query(`select set_config('request.jwt.claims', $1, false)`, [claims]);
   try {

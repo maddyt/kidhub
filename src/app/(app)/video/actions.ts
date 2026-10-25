@@ -8,7 +8,7 @@ export async function addCamera(_: ActionResult, form: FormData): Promise<Action
   const ctx = await requireAdmin();
   const supabase = await supabaseServer();
   const name = String(form.get('name') ?? '').trim(), url = String(form.get('stream_url') ?? '').trim();
-  if (!name || !/^https:\/\//.test(url)) return { error: 'Give the camera a name and an https:// stream URL (.m3u8).' };
+  if (!name || !(/^https:\/\//.test(url) || /^mux:[A-Za-z0-9]+$/.test(url))) return { error: 'Give the camera a name and an https:// stream URL (.m3u8) or mux:PLAYBACK_ID.' };
   const { data, error } = await supabase.from('cameras').insert({
     school_id: ctx.school.id, name, stream_url: url, classroom_id: String(form.get('classroom_id') || '') || null,
   }).select('id').single();

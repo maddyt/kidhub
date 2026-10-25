@@ -24,8 +24,8 @@ export default async function VideoAdmin({ searchParams }: { searchParams: Promi
   return (
     <div className="space-y-5">
       <PageHeader title="Cameras & live video" subtitle="Families see a classroom camera only for their own child’s room, only during the windows you set, and only after you approve them." />
-      <Notice>Streams must be HLS (<code>.m3u8</code>) over https. Most IP cameras output RTSP; a restreaming service (see README → Live video) converts it. The stream URL is never shown to families.</Notice>
-      {previewing && <VideoPlayer src={previewing.stream_url} title={`Preview: ${previewing.name}`} />}
+      <Notice>Enter an HLS (<code>.m3u8</code>) https URL, or <code>mux:PLAYBACK_ID</code> for a Mux stream. With Mux signing keys configured, families only ever get links that expire within 10 minutes. Most IP cameras output RTSP; a restreaming service converts it (README → Live video). The source URL is never shown to families.</Notice>
+      {previewing && <VideoPlayer cameraId={previewing.id} title={`Preview: ${previewing.name}`} />}
       {(cams ?? []).length === 0 && <Empty>No cameras yet.</Empty>}
       {(cams ?? []).map((c: any) => (
         <section key={c.id} className="card space-y-3">

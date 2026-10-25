@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireAdmin, requireUser } from '@/lib/context.ts';
 import { supabaseServer } from '@/lib/supabase/server.ts';
+import { EMAIL_RE } from '@/lib/security/compare.ts';
 import type { ActionResult } from '@/components/ActionForm.tsx';
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? '').trim() || null;
@@ -60,8 +61,10 @@ export async function inviteGuardian(_: ActionResult, form: FormData): Promise<A
   const ctx = await requireAdmin();
   const supabase = await supabaseServer();
   const child_id = String(form.get('child_id'));
+  const email = s(form, 'email')?.toLowerCase() ?? '';
+  if (!EMAIL_RE.test(email)) return { error: 'Enter the family member’s email. Only that address can use the link.' };
   const { error } = await supabase.from('invitations').insert({
-    school_id: ctx.school.id, role: 'guardian', child_id, email: s(form, 'email')?.toLowerCase() ?? null,
+    school_id: ctx.school.id, role: 'guardian', child_id, email,
     relationship: s(form, 'relationship') ?? 'parent', access: form.get('access') === 'video_only' ? 'video_only' : 'full', created_by: ctx.userId,
   });
   if (error) return { error: error.message };

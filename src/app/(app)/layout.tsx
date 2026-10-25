@@ -21,9 +21,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       { href: '/approvals', label: 'Approvals', icon: '🛡️' },
       { href: '/video', label: 'Cameras', icon: '🎥' },
       { href: '/assistant', label: 'AI assistant', icon: '✨' },
+      { href: '/audit', label: 'Audit log', icon: '📜' },
       { href: '/settings', label: 'Settings', icon: '⚙️' },
     ] : []),
     ...(ctx.isFamily ? [{ href: '/family', label: 'My family', icon: '👪' }] : []),
+    { href: '/account', label: 'Account & security', icon: '🔐' },
   ];
   const fullFamily = ctx.guardianOf.some((g) => g.access === 'full');
   const family: NavItem[] = [
@@ -36,6 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: '/family/video', label: 'Live video', icon: '🎥' },
     ...(fullFamily ? [{ href: '/family/people', label: 'Pickups & family', icon: '👪' }] : []),
     ...(ctx.isStaff ? [{ href: '/dashboard', label: 'Staff view', icon: '🏫' }] : []),
+    { href: '/account', label: 'Account & security', icon: '🔐' },
   ];
 
   return (

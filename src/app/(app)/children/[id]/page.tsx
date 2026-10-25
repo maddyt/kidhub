@@ -105,7 +105,7 @@ export default async function ChildPage({ params }: { params: Promise<{ id: stri
                   <ActionForm action={inviteGuardian} className="mt-2 grid gap-2 sm:grid-cols-3">
                     <input type="hidden" name="child_id" value={id} />
                     <Field label="Relationship"><input name="relationship" defaultValue="parent" className="input" /></Field>
-                    <Field label="Email (optional, locks the link to it)"><input name="email" type="email" className="input" /></Field>
+                    <Field label="Their email (only they can use the link)"><input name="email" type="email" required className="input" /></Field>
                     <Field label="Access">
                       <select name="access" className="input"><option value="full">Full (reports, billing, messages)</option><option value="video_only">Video only</option></select>
                     </Field>
