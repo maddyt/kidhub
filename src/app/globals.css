@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+body { @apply bg-canvas text-ink antialiased; }
+
+@layer components {
+  .card { @apply rounded-xl border border-rule bg-white p-4 shadow-sm; }
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition disabled:opacity-50; }
+  .btn-primary { @apply btn bg-brand text-white hover:bg-brand-dark; }
+  .btn-secondary { @apply btn border border-rule bg-white text-ink hover:bg-canvas; }
+  .btn-danger { @apply btn border border-danger/30 bg-white text-danger hover:bg-danger/5; }
+  .btn-sm { @apply px-2.5 py-1 text-xs; }
+  .input { @apply w-full rounded-lg border border-rule bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20; }
+  .label { @apply mb-1 block text-xs font-medium uppercase tracking-wide text-muted; }
+  .h1 { @apply text-2xl font-semibold tracking-tight; }
+  .h2 { @apply text-lg font-semibold; }
+  .muted { @apply text-sm text-muted; }
+  .table { @apply w-full text-left text-sm; }
+  .table th { @apply border-b border-rule px-2 py-2 text-xs font-medium uppercase tracking-wide text-muted; }
+  .table td { @apply border-b border-rule px-2 py-2 align-top; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}
