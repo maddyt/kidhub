@@ -50,7 +50,7 @@ No email setup is needed to get started. Accounts are created by invitation link
 ### 3. Load the demo (optional, recommended, no terminal needed)
 Open `https://YOUR-APP.vercel.app/demo/setup`, enter your `OWNER_SIGNUP_CODE`, and click **Create / reset demo** (about 20 seconds). It needs `NEXT_PUBLIC_DEMO_MODE=true` and `DEMO_PASSWORD` set in Vercel.
 
-The login page then shows one-click buttons for Owner, Director, Teacher, Parent and Grandparent at the fictional "Little Oaks Learning" (two campuses, 30 children, a realistic day with planted problems for the alerts to catch). The demo is dated the day you create it; click **Create / reset demo** again any time for a fresh day. **Remove demo** deletes it. It never touches real schools.
+The login page then shows one-click buttons for Owner, Director, Teacher, Parent and Grandparent at Bright Star Children's Montessori and a second campus (fictional sample children and families, 30 children, a realistic day with planted problems for the alerts to catch). The demo is dated the day you create it; click **Create / reset demo** again any time for a fresh day. **Remove demo** deletes it. It never touches real schools.
 
 (Developers can do the same from a terminal with `npm run seed:demo`.)
 

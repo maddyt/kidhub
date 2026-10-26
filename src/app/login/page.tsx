@@ -35,7 +35,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       {env.demoMode() && (
         <div className="card">
           <h2 className="h2">Try the demo</h2>
-          <p className="muted mb-3">Sign in as a sample user at the fictional “Little Oaks Learning” schools.</p>
+          <p className="muted mb-3">Sign in as a sample user at Bright Star Children’s Montessori. Children, families and records are fictional sample data.</p>
           {demo === 'missing' && <Notice tone="amber">Demo accounts not found yet. <Link href="/demo/setup" className="underline">Set up demo data</Link> first (takes about 20 seconds).</Notice>}
           {demo === 'busy' && <Notice tone="amber">Too many demo sign-ins from your network. Please wait a few minutes.</Notice>}
           {demo === 'ready' && <Notice>Demo data is ready. Pick a role below.</Notice>}

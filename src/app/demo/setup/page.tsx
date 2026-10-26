@@ -12,7 +12,7 @@ export default function DemoSetupPage() {
   return (
     <div className="mx-auto max-w-md space-y-4 p-4 py-10">
       <h1 className="h1">Set up demo data</h1>
-      <p className="muted">Creates the fictional “Little Oaks Learning” schools with sample children, staff, parents, invoices and cameras, dated today.
+      <p className="muted">Creates the Bright Star Children’s Montessori demo (two campuses) with fictional sample children, staff, parents, invoices and cameras, dated today.
         Running it again resets the demo to a fresh day. It never touches your real schools.</p>
       {!env.demoMode() ? <Notice tone="amber">Demo mode is off (NEXT_PUBLIC_DEMO_MODE is not “true”).</Notice> : (
         <div className="card space-y-4">

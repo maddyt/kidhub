@@ -1,11 +1,15 @@
-// The fictional "Little Oaks Learning" demo: two schools, staff, families, a realistic day of
+// The demo: Bright Star Children's Montessori plus a second campus, with fictional children, families,
+// staff records and a realistic day of
 // check-ins and care entries, invoices, cameras and messages. Used by the "Set up demo" page
 // (/demo/setup) and by `npm run seed:demo`. Safe to re-run: it replaces the previous demo.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DEMO_ACCOUNTS } from './demo.ts';
 import { dayIn, dayBounds, addDays } from './domain/time.ts';
 
-const ORG = 'Little Oaks Learning (demo)';
+const ORG = 'Bright Star Children’s Montessori (demo)';
+const SCHOOL_1 = 'Bright Star Children’s Montessori';
+// Earlier demo organization names, removed on reset so an old demo never lingers.
+const PREVIOUS_ORGS = ['Little Oaks Learning (demo)'];
 const TZ = 'America/Los_Angeles';
 const EXTRA_STAFF = [
   { email: 'maria.demo@example.com', name: 'Maria Lopez' },
@@ -20,7 +24,7 @@ function check<T>(r: { data: T; error: any }, what: string): NonNullable<T> {
 
 /** Deletes the demo organization (cascading to all its data) and the demo accounts. */
 export async function removeDemo(db: SupabaseClient) {
-  const { data: orgs } = await db.from('organizations').select('id').eq('name', ORG);
+  const { data: orgs } = await db.from('organizations').select('id').in('name', [ORG, ...PREVIOUS_ORGS]);
   const orgIds = (orgs ?? []).map((o) => o.id);
   const { data: schools } = orgIds.length ? await db.from('schools').select('id').in('org_id', orgIds) : { data: [] };
   for (const id of orgIds) check(await db.from('organizations').delete().eq('id', id), 'delete org');
@@ -68,22 +72,22 @@ export async function seedDemo(db: SupabaseClient, password: string): Promise<{ 
   for (const a of DEMO_ACCOUNTS) id[a.key] = await user(db, a.email, a.name, password);
   for (const s of EXTRA_STAFF) id[s.email] = await user(db, s.email, s.name, crypto.randomUUID());
 
-  const maple = check(await db.rpc('create_organization', { p_owner: id.owner, p_org_name: ORG, p_school_name: 'Maple Street campus', p_timezone: TZ }), 'org') as string;
-  const { data: org } = await db.from('schools').select('org_id').eq('id', maple).single();
-  check(await db.from('schools').update({ address: '120 Maple St', require_photo_approval: true }).eq('id', maple), 'school');
+  const brightStar = check(await db.rpc('create_organization', { p_owner: id.owner, p_org_name: ORG, p_school_name: SCHOOL_1, p_timezone: TZ }), 'org') as string;
+  const { data: org } = await db.from('schools').select('org_id').eq('id', brightStar).single();
+  check(await db.from('schools').update({ require_photo_approval: true }).eq('id', brightStar), 'school');
   const river = check(await db.from('schools').insert({ org_id: org!.org_id, name: 'Riverside campus', timezone: TZ, address: '45 River Rd' }).select('id').single(), 'school 2').id;
 
   check(await db.from('school_staff').insert([
-    { school_id: maple, profile_id: id.director, role: 'director' },
-    { school_id: maple, profile_id: id.teacher, role: 'teacher' },
-    { school_id: maple, profile_id: id['maria.demo@example.com'], role: 'teacher' },
+    { school_id: brightStar, profile_id: id.director, role: 'director' },
+    { school_id: brightStar, profile_id: id.teacher, role: 'teacher' },
+    { school_id: brightStar, profile_id: id['maria.demo@example.com'], role: 'teacher' },
     { school_id: river, profile_id: id['sam.demo@example.com'], role: 'director' },
   ]), 'staff');
 
   const rooms = check(await db.from('classrooms').insert([
-    { school_id: maple, name: 'Infants', age_group: 'infant', ratio: 4, capacity: 8, diaper_interval_min: 120, bottle_interval_min: 180 },
-    { school_id: maple, name: 'Toddlers', age_group: 'toddler', ratio: 6, capacity: 12, diaper_interval_min: 150 },
-    { school_id: maple, name: 'Preschool', age_group: 'preschool', ratio: 10, capacity: 20 },
+    { school_id: brightStar, name: 'Infants', age_group: 'infant', ratio: 4, capacity: 8, diaper_interval_min: 120, bottle_interval_min: 180 },
+    { school_id: brightStar, name: 'Toddlers', age_group: 'toddler', ratio: 6, capacity: 12, diaper_interval_min: 150 },
+    { school_id: brightStar, name: 'Preschool', age_group: 'preschool', ratio: 10, capacity: 20 },
     { school_id: river, name: 'Toddlers', age_group: 'toddler', ratio: 6, capacity: 12, diaper_interval_min: 150 },
     { school_id: river, name: 'Pre-K', age_group: 'preschool', ratio: 10, capacity: 20 },
   ]).select('id, school_id, name'), 'classrooms');
@@ -91,18 +95,18 @@ export async function seedDemo(db: SupabaseClient, password: string): Promise<{ 
 
   const yearsAgo = (y: number, m = 0) => addDays(today, -Math.round(y * 365 + m * 30.4));
   const kidRows = [
-    // Maple Infants
-    ['Aarav', 'Shah', maple, room(maple, 'Infants'), yearsAgo(0, 9), null],
-    ['Leo', 'Martinez', maple, room(maple, 'Infants'), yearsAgo(0, 7), null],
-    ['Nora', 'Kim', maple, room(maple, 'Infants'), yearsAgo(0, 11), 'Dairy (formula only)'],
-    ['Eli', 'Johnson', maple, room(maple, 'Infants'), yearsAgo(1, 1), null],
-    // Maple Toddlers
+    // Bright Star: Infants
+    ['Aarav', 'Shah', brightStar, room(brightStar, 'Infants'), yearsAgo(0, 9), null],
+    ['Leo', 'Martinez', brightStar, room(brightStar, 'Infants'), yearsAgo(0, 7), null],
+    ['Nora', 'Kim', brightStar, room(brightStar, 'Infants'), yearsAgo(0, 11), 'Dairy (formula only)'],
+    ['Eli', 'Johnson', brightStar, room(brightStar, 'Infants'), yearsAgo(1, 1), null],
+    // Bright Star: Toddlers
     ...['Ava Brooks', 'Mateo Garcia', 'Zoe Chen', 'Liam Walker', 'Isla Patel', 'Noah Rivera', 'Maya Thompson'].map((n, i) =>
-      [n.split(' ')[0], n.split(' ')[1], maple, room(maple, 'Toddlers'), yearsAgo(1, 6 + i), i === 2 ? 'Peanuts (EpiPen in office)' : null]),
-    // Maple Preschool
-    ['Mira', 'Shah', maple, room(maple, 'Preschool'), yearsAgo(4, 2), null],
+      [n.split(' ')[0], n.split(' ')[1], brightStar, room(brightStar, 'Toddlers'), yearsAgo(1, 6 + i), i === 2 ? 'Peanuts (EpiPen in office)' : null]),
+    // Bright Star: Preschool
+    ['Mira', 'Shah', brightStar, room(brightStar, 'Preschool'), yearsAgo(4, 2), null],
     ...['Owen Davis', 'Lucy Nguyen', 'Ezra Cohen', 'Hazel Wright', 'Kai Robinson'].map((n, i) =>
-      [n.split(' ')[0], n.split(' ')[1], maple, room(maple, 'Preschool'), yearsAgo(3, 4 + i), i === 1 ? 'Eggs' : null]),
+      [n.split(' ')[0], n.split(' ')[1], brightStar, room(brightStar, 'Preschool'), yearsAgo(3, 4 + i), i === 1 ? 'Eggs' : null]),
     // Riverside
     ...['Ruby Scott', 'Theo Adams', 'Ivy Baker', 'Felix Hall', 'Luna Young'].map((n, i) =>
       [n.split(' ')[0], n.split(' ')[1], river, room(river, 'Toddlers'), yearsAgo(1, 8 + i), null]),
@@ -117,8 +121,8 @@ export async function seedDemo(db: SupabaseClient, password: string): Promise<{ 
   const aarav = kid('Aarav', 'Shah'), mira = kid('Mira', 'Shah'), zoe = kid('Zoe', 'Chen');
 
   check(await db.from('children').insert([
-    { school_id: maple, first_name: 'Henry', last_name: 'Ortiz', status: 'waitlist', classroom_id: room(maple, 'Infants'), birth_date: yearsAgo(0, 3) },
-    { school_id: maple, first_name: 'Willow', last_name: 'Price', status: 'waitlist', classroom_id: room(maple, 'Toddlers'), birth_date: yearsAgo(1, 4) },
+    { school_id: brightStar, first_name: 'Henry', last_name: 'Ortiz', status: 'waitlist', classroom_id: room(brightStar, 'Infants'), birth_date: yearsAgo(0, 3) },
+    { school_id: brightStar, first_name: 'Willow', last_name: 'Price', status: 'waitlist', classroom_id: room(brightStar, 'Toddlers'), birth_date: yearsAgo(1, 4) },
     { school_id: river, first_name: 'Oscar', last_name: 'Reed', status: 'waitlist', classroom_id: room(river, 'Pre-K'), birth_date: yearsAgo(3, 9) },
   ]), 'waitlist');
 
@@ -142,14 +146,14 @@ export async function seedDemo(db: SupabaseClient, password: string): Promise<{ 
     dropped_off_by: k.id === aarav.id || k.id === mira.id ? 'Priya Shah' : null,
   }))), 'attendance');
   const liam = kid('Liam', 'Walker');
-  check(await db.from('attendance').insert({ child_id: liam.id, school_id: maple, day: addDays(today, -1),
+  check(await db.from('attendance').insert({ child_id: liam.id, school_id: brightStar, day: addDays(today, -1),
     check_in_at: new Date(dayBounds(addDays(today, -1), TZ).start.getTime() + 8 * 3.6e6).toISOString(), check_in_by: id.teacher }), 'stale attendance');
 
   // Shifts: Infants covered; Toddlers has 7 children but only one teacher (1:6) → ratio alert.
   check(await db.from('shifts').insert([
-    { school_id: maple, profile_id: id.teacher, classroom_id: room(maple, 'Infants'), clock_in_at: agoToday(250) },
-    { school_id: maple, profile_id: id['maria.demo@example.com'], classroom_id: room(maple, 'Toddlers'), clock_in_at: agoToday(250) },
-    { school_id: maple, profile_id: id.director, classroom_id: null, clock_in_at: agoToday(260) },
+    { school_id: brightStar, profile_id: id.teacher, classroom_id: room(brightStar, 'Infants'), clock_in_at: agoToday(250) },
+    { school_id: brightStar, profile_id: id['maria.demo@example.com'], classroom_id: room(brightStar, 'Toddlers'), clock_in_at: agoToday(250) },
+    { school_id: brightStar, profile_id: id.director, classroom_id: null, clock_in_at: agoToday(260) },
     { school_id: river, profile_id: id['sam.demo@example.com'], classroom_id: room(river, 'Pre-K'), clock_in_at: agoToday(250) },
   ]), 'shifts');
 
@@ -183,19 +187,19 @@ export async function seedDemo(db: SupabaseClient, password: string): Promise<{ 
     act(mira, 'photo', 40, {}, 'Painting with watercolors', { photo_path: photoPending, approved: false }),
     act(mira, 'observation', 35, { domain: 'language' }, 'Retold "The Very Hungry Caterpillar" in order to her friends.'),
     act(mira, 'meal', 20, { meal_type: 'lunch', amount: 'some', food: 'pasta, peas' }),
-    ...present.filter((k) => k.classroom_id === room(maple, 'Toddlers')).map((k, i) => act(k, 'diaper', 60 + i * 10, { kind: 'wet' })),
+    ...present.filter((k) => k.classroom_id === room(brightStar, 'Toddlers')).map((k, i) => act(k, 'diaper', 60 + i * 10, { kind: 'wet' })),
     // Rows differ in which optional fields they set; let the others take column defaults (e.g. approved = true).
   ], { defaultToNull: false }), 'activities');
 
   check(await db.from('messages').insert([
-    { school_id: maple, child_id: aarav.id, sender_id: id.parent, body: 'Morning! Aarav was up a lot last night, so he may want an early nap.', created_at: agoToday(230) },
-    { school_id: maple, child_id: aarav.id, sender_id: id.teacher, body: 'Thanks for letting us know! He went down at 9:30 and slept nearly an hour.', created_at: agoToday(90) },
-    { school_id: maple, child_id: mira.id, sender_id: id.director, body: 'Reminder: Mira’s class field trip form is due Friday.', created_at: agoToday(300) },
+    { school_id: brightStar, child_id: aarav.id, sender_id: id.parent, body: 'Morning! Aarav was up a lot last night, so he may want an early nap.', created_at: agoToday(230) },
+    { school_id: brightStar, child_id: aarav.id, sender_id: id.teacher, body: 'Thanks for letting us know! He went down at 9:30 and slept nearly an hour.', created_at: agoToday(90) },
+    { school_id: brightStar, child_id: mira.id, sender_id: id.director, body: 'Reminder: Mira’s class field trip form is due Friday.', created_at: agoToday(300) },
   ]), 'messages');
 
   check(await db.from('announcements').insert([
-    { school_id: maple, kind: 'info', title: 'Picture day is Friday', body: 'Photographers arrive at 9am. Order forms are in your child’s cubby.', created_by: id.director },
-    { school_id: maple, kind: 'closure', title: 'Closed Monday for staff training', body: 'Both campuses are closed next Monday for CPR recertification.', created_by: id.owner },
+    { school_id: brightStar, kind: 'info', title: 'Picture day is Friday', body: 'Photographers arrive at 9am. Order forms are in your child’s cubby.', created_by: id.director },
+    { school_id: brightStar, kind: 'closure', title: 'Closed Monday for staff training', body: 'Both campuses are closed next Monday for CPR recertification.', created_by: id.owner },
     { school_id: river, kind: 'closure', title: 'Closed Monday for staff training', body: 'Both campuses are closed next Monday for CPR recertification.', created_by: id.owner },
   ]), 'announcements');
 
@@ -221,18 +225,18 @@ export async function seedDemo(db: SupabaseClient, password: string): Promise<{ 
   check(await db.from('invoices').insert(invoices), 'invoices');
 
   check(await db.from('certifications').insert([
-    { school_id: maple, profile_id: id.teacher, name: 'Pediatric CPR', expires_on: addDays(today, 20) },
-    { school_id: maple, profile_id: id.teacher, name: 'First Aid', expires_on: addDays(today, 300) },
-    { school_id: maple, profile_id: id.director, name: 'Director credential', expires_on: addDays(today, 500) },
-    { school_id: maple, profile_id: id['maria.demo@example.com'], name: 'Pediatric CPR', expires_on: addDays(today, 180) },
+    { school_id: brightStar, profile_id: id.teacher, name: 'Pediatric CPR', expires_on: addDays(today, 20) },
+    { school_id: brightStar, profile_id: id.teacher, name: 'First Aid', expires_on: addDays(today, 300) },
+    { school_id: brightStar, profile_id: id.director, name: 'Director credential', expires_on: addDays(today, 500) },
+    { school_id: brightStar, profile_id: id['maria.demo@example.com'], name: 'Pediatric CPR', expires_on: addDays(today, 180) },
     { school_id: river, profile_id: id['sam.demo@example.com'], name: 'First Aid', expires_on: addDays(today, -12) },
   ]), 'certs');
 
   // Public test streams stand in for classroom cameras. Demo windows are always open.
   const cams = check(await db.from('cameras').insert([
-    { school_id: maple, classroom_id: room(maple, 'Infants'), name: 'Infant room', stream_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
-    { school_id: maple, classroom_id: null, name: 'Playground', stream_url: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8' },
-    { school_id: maple, classroom_id: room(maple, 'Preschool'), name: 'Preschool room', stream_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
+    { school_id: brightStar, classroom_id: room(brightStar, 'Infants'), name: 'Infant room', stream_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
+    { school_id: brightStar, classroom_id: null, name: 'Playground', stream_url: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8' },
+    { school_id: brightStar, classroom_id: room(brightStar, 'Preschool'), name: 'Preschool room', stream_url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8' },
   ]).select('id'), 'cameras');
   check(await db.from('video_windows').insert(cams.map((c) => ({ camera_id: c.id, days: [0, 1, 2, 3, 4, 5, 6], start_time: '00:00', end_time: '23:59:59' }))), 'windows');
 
