@@ -63,6 +63,8 @@ The login page then shows one-click buttons for Owner, Director, Teacher, Parent
 
 See [`docs/PILOT.md`](docs/PILOT.md) for a one-week pilot plan to run with the school.
 
+Switching from Brightwheel, Tadpoles or WatchMeGrow? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for exporting data, onboarding families, moving billing and moving the classroom cameras.
+
 See [`docs/COMMERCIALIZATION.md`](docs/COMMERCIALIZATION.md) for the plan to turn this into a commercial product: roadmap, switching program, security, privacy, scale and performance.
 
 Run locally with `npm run dev` (uses `.env.local`).
