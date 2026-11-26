@@ -44,15 +44,21 @@ export async function generateManifest(topic: string, plane: Plane, subject: Sub
     const prompt = attempt === 1
       ? userTurn
       : `${userTurn}\n\nYour previous attempt failed validation for these reasons — fix them and return the corrected JSON object only:\n${errors.map((e) => `- ${e}`).join('\n')}`;
-    const response = await client.beta.messages.create({
-      model: env.anthropicModel(),
-      max_tokens: 4000,
-      output_config: { effort: 'medium' },
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    let response: Awaited<ReturnType<typeof client.beta.messages.create>>;
+    try {
+      response = await client.beta.messages.create({
+        model: env.anthropicModel(),
+        max_tokens: 4000,
+        output_config: { effort: 'medium' },
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        system,
+        messages: [{ role: 'user', content: prompt }],
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'The AI service could not be reached.';
+      return { ok: false, error: `The AI service returned an error: ${message}` };
+    }
     if (response.stop_reason === 'refusal') return { ok: false, error: 'The assistant declined to generate this packet. Try rephrasing the topic.' };
     const text = response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n').trim();
     const jsonText = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
@@ -82,25 +88,31 @@ export async function judgeIllustration(imageBase64: string, mediaType: 'image/p
   const criteria = highlightRegion
     ? `3. Highlight accuracy: ONLY "${highlightRegion}" is highlighted in Montessori Crimson (#C8102E); nothing else in the image is red.`
     : '3. Highlight accuracy: not applicable (this is the unhighlighted base image).';
-  const response = await client.beta.messages.create({
-    model: env.anthropicModel(),
-    max_tokens: 300,
-    output_config: { effort: 'low' },
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    system: `You are a strict quality-assurance judge for Montessori scientific illustrations. Check the image against exactly these criteria:
+  let response: Awaited<ReturnType<typeof client.beta.messages.create>>;
+  try {
+    response = await client.beta.messages.create({
+      model: env.anthropicModel(),
+      max_tokens: 300,
+      output_config: { effort: 'low' },
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
+      system: `You are a strict quality-assurance judge for Montessori scientific illustrations. Check the image against exactly these criteria:
 1. Background purity: the background is 100% pure white (#FFFFFF), no edge cropping, no ambient shadows or gradients.
 2. Typography isolation: zero embedded text, labels or watermarks anywhere in the image.
 ${criteria}
 Respond with ONLY a JSON object: {"pass": boolean, "notes": "one short sentence"}.`,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
-        { type: 'text', text: 'Judge this image against the three criteria.' },
-      ],
-    }],
-  });
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+          { type: 'text', text: 'Judge this image against the three criteria.' },
+        ],
+      }],
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'The AI service could not be reached.';
+    return { pass: false, notes: `Judge call failed: ${message}` };
+  }
   const text = response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('').trim();
   try {
     const parsed = JSON.parse(text.replace(/^```(json)?/i, '').replace(/```$/, '').trim());
