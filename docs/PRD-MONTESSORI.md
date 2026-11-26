@@ -5,7 +5,7 @@
 | **Status** | Draft for review with the owner of Bright Star Children's Montessori |
 | **Owner** | Product (KidHub) |
 | **Reviewers** | Head of school / owner, lead guides, one assistant guide, two families |
-| **Related** | [COMMERCIALIZATION.md](COMMERCIALIZATION.md) (roadmap), [MIGRATION.md](MIGRATION.md) (switching), [README](../README.md) |
+| **Related** | [COMMERCIALIZATION.md](COMMERCIALIZATION.md) (roadmap), [MIGRATION.md](MIGRATION.md) (switching), [PACKET-GENERATOR.md](PACKET-GENERATOR.md) (F16, built), [README](../README.md) |
 
 > **About the competitor information in this document.** msphere's website and app listing couldn't be opened directly from the environment this was written in. What's said about msphere comes from search-engine summaries of its public pages (cited in [§14](#14-sources)) and is marked *unverified*. **Before building, run a hands-on msphere trial or demo and update the parity table in [§4](#4-msphere-parity).**
 
@@ -302,6 +302,7 @@ Priority: **P0** (must for the milestone), **P1** (should), **P2** (could).
 |---|---|---|
 | F16.1 | Printable **progress matrix**, **observation log**, **daily care sheet**, **conference template** (blank and filled from KidHub data). | P2 |
 | F16.2 | Public, free versions of these templates on the KidHub website as marketing (GTM; see COMMERCIALIZATION §13.3). | P2 |
+| F16.3 | **Packet Generator**: turn a curiosity question into a printable Montessori packet (vocabulary cards, a short story, a hands-on Control of Error activity), color-coded to match the curriculum areas above. **Built** — see [PACKET-GENERATOR.md](PACKET-GENERATOR.md) for scope, what ships today vs. pending an image provider, and what was cut from the source spec. | P0 |
 
 ### F17. Head-of-school insights and alerts
 
