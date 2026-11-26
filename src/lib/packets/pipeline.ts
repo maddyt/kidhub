@@ -14,13 +14,13 @@ export interface RunPacketPipelineInput {
 export type RunPacketPipelineResult = { ok: true; id: string } | { ok: false; id: string | null; error: string };
 
 /**
- * The whole three-subsystem pipeline, run synchronously in one request: Subsystem A (manifest),
- * Subsystem B (illustrations, parallelized and capped — see src/lib/packets/illustrations.ts;
- * a no-op if no provider is configured), Subsystem C (PDF compile). This still fits in one Vercel
- * function call because B runs in parallel rather than per-term in sequence, but it's close:
- * the route exports `maxDuration = 60` (src/app/(app)/packets/page.tsx and family/packets/
- * page.tsx) to give the manifest call and the illustration batch room. If packets start timing
- * out, split this into a background job instead of raising that further.
+ * The whole three-subsystem pipeline, run synchronously in one request: Subsystem A (manifest —
+ * itself variable, up to ~75s observed when a repair retry is needed), Subsystem B (illustrations,
+ * parallelized and capped — see src/lib/packets/illustrations.ts; a no-op if no provider is
+ * configured), Subsystem C (PDF compile). The route exports `maxDuration = 300` (src/app/(app)/
+ * packets/page.tsx and family/packets/page.tsx) to give both real headroom; 60 was tried first and
+ * measurably wasn't enough even before adding Subsystem B. If packets keep timing out as usage
+ * grows, split this into a background job instead of raising the duration further.
  */
 export async function runPacketPipeline(supabase: SupabaseClient, input: RunPacketPipelineInput): Promise<RunPacketPipelineResult> {
   const created = await createPacketRequest(supabase, {

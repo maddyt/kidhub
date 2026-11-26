@@ -9,9 +9,10 @@ import { RequestForm } from '../../packets/RequestForm.tsx';
 import { requestFamilyPacket, deleteFamilyPacketRequest } from './actions.ts';
 
 export const metadata = { title: 'Packet Generator' };
-// Applies to requestFamilyPacket (./actions.ts) too: illustration generation (parallelized, but
-// still real network calls) can exceed Vercel's 10s default.
-export const maxDuration = 60;
+// Applies to requestFamilyPacket (./actions.ts) too. 60s wasn't enough: manifest generation
+// alone has taken ~75s on a retry even without any image calls, so this needs real headroom on
+// top of that, not just past the 10s default.
+export const maxDuration = 300;
 
 const STATUS_TONE = { draft: 'gray', manifest_ready: 'amber', compiled: 'green', failed: 'red' } as const;
 
