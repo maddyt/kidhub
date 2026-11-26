@@ -18,8 +18,8 @@ export type RunPacketPipelineResult = { ok: true; id: string } | { ok: false; id
  * Subsystem B (illustrations, parallelized and capped — see src/lib/packets/illustrations.ts;
  * a no-op if no provider is configured), Subsystem C (PDF compile). This still fits in one Vercel
  * function call because B runs in parallel rather than per-term in sequence, but it's close:
- * the route exports `maxDuration = 60` (src/app/(app)/packets/actions.ts and family/packets/
- * actions.ts) to give the manifest call and the illustration batch room. If packets start timing
+ * the route exports `maxDuration = 60` (src/app/(app)/packets/page.tsx and family/packets/
+ * page.tsx) to give the manifest call and the illustration batch room. If packets start timing
  * out, split this into a background job instead of raising that further.
  */
 export async function runPacketPipeline(supabase: SupabaseClient, input: RunPacketPipelineInput): Promise<RunPacketPipelineResult> {

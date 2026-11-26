@@ -8,6 +8,9 @@ import { RequestForm } from './RequestForm.tsx';
 import { requestPacket, deletePacketRequest } from './actions.ts';
 
 export const metadata = { title: 'Packet Generator' };
+// Applies to requestPacket (src/app/(app)/packets/actions.ts) too: illustration generation
+// (parallelized, but still real network calls) can exceed Vercel's 10s default.
+export const maxDuration = 60;
 
 const STATUS_TONE = { draft: 'gray', manifest_ready: 'amber', compiled: 'green', failed: 'red' } as const;
 
