@@ -2,6 +2,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateIllustration, imageGenerationConfigured } from '../images/provider.ts';
 import { judgeIllustration } from '../ai/packets.ts';
+import { canEmbedImage } from '../pdf/pdf-writer.ts';
 import { uploadPacketImage, insertPacketAsset } from '../data/packets.ts';
 import type { PacketManifest } from '../domain/packets.ts';
 
@@ -14,9 +15,10 @@ export const MAX_ILLUSTRATED_TERMS = 4;
 
 /**
  * Generates and judges one illustration per vocabulary term (up to the cap). A term that fails
- * every attempt, errors, or comes back in a format the PDF writer can't embed (anything but
- * JPEG) is simply skipped — the packet still compiles without it, text-only for that term.
- * Returns an empty map immediately if no provider is configured.
+ * every attempt, errors, or comes back in a format/variant the PDF writer can't embed (JPEG and
+ * plain 8-bit non-interlaced PNG are supported; see pdf-writer.ts) is simply skipped — the packet
+ * still compiles without it, text-only for that term. Returns an empty map immediately if no
+ * provider is configured.
  */
 export async function generateIllustrations(
   supabase: SupabaseClient, schoolId: string, requestId: string, manifest: PacketManifest,
@@ -43,18 +45,18 @@ async function illustrateOne(supabase: SupabaseClient, schoolId: string, request
       await insertPacketAsset(supabase, requestId, termName, 'base', null, false, e instanceof Error ? e.message : 'Generation failed.', attempt);
       continue;
     }
-    if (image.mediaType !== 'image/jpeg') {
-      await insertPacketAsset(supabase, requestId, termName, 'base', null, false, `Can't embed ${image.mediaType} in the PDF yet — only JPEG.`, attempt);
+    if (!canEmbedImage(image.bytes)) {
+      await insertPacketAsset(supabase, requestId, termName, 'base', null, false, `Can't embed this ${image.mediaType} in the PDF (unsupported format or variant).`, attempt);
       continue;
     }
 
-    const judged = await judgeIllustration(Buffer.from(image.bytes).toString('base64'), 'image/jpeg');
+    const judged = await judgeIllustration(Buffer.from(image.bytes).toString('base64'), image.mediaType);
     if (!judged.pass) {
       await insertPacketAsset(supabase, requestId, termName, 'base', null, false, judged.notes, attempt);
       continue;
     }
 
-    const path = await uploadPacketImage(supabase, schoolId, requestId, termName, image.bytes);
+    const path = await uploadPacketImage(supabase, schoolId, requestId, termName, image.bytes, image.mediaType);
     await insertPacketAsset(supabase, requestId, termName, 'base', path, true, judged.notes, attempt);
     return image.bytes;
   }

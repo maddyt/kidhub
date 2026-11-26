@@ -73,10 +73,11 @@ export async function uploadPacketPdf(supabase: SupabaseClient, schoolId: string
   return path;
 }
 
-export async function uploadPacketImage(supabase: SupabaseClient, schoolId: string, requestId: string, termName: string, bytes: Uint8Array): Promise<string> {
+export async function uploadPacketImage(supabase: SupabaseClient, schoolId: string, requestId: string, termName: string, bytes: Uint8Array, mediaType: 'image/jpeg' | 'image/png'): Promise<string> {
   const slug = termName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '') || 'term';
-  const path = `${schoolId}/${requestId}/${slug}-${crypto.randomUUID().slice(0, 8)}.jpg`;
-  const { error } = await supabase.storage.from('packets').upload(path, bytes, { contentType: 'image/jpeg' });
+  const ext = mediaType === 'image/png' ? 'png' : 'jpg';
+  const path = `${schoolId}/${requestId}/${slug}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+  const { error } = await supabase.storage.from('packets').upload(path, bytes, { contentType: mediaType });
   if (error) throw new Error(`Illustration upload failed: ${error.message}`);
   return path;
 }

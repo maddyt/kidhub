@@ -48,10 +48,10 @@ function mirrorColumn(col: number, cols: number): number {
 export interface CompileResult { bytes: Uint8Array; pageCount: number }
 
 /**
- * `illustrations` maps a vocabulary term's exact name to an accepted (VLM-judged) JPEG image —
- * only JPEGs, since the hand-rolled PDF writer doesn't decode PNG (see pdf-writer.ts). Terms with
- * no entry simply don't get a picture card; everything else in the packet compiles the same
- * whether or not any illustrations exist.
+ * `illustrations` maps a vocabulary term's exact name to an accepted (VLM-judged, embeddable —
+ * see canEmbedImage in pdf-writer.ts) JPEG or PNG image. Terms with no entry simply don't get a
+ * picture card; everything else in the packet compiles the same whether or not any illustrations
+ * exist.
  */
 export async function compilePacketPdf(manifest: PacketManifest, schoolName?: string, illustrations?: Map<string, Uint8Array>): Promise<CompileResult> {
   const doc = new PdfDocument();

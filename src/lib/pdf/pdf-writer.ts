@@ -1,8 +1,8 @@
 // A minimal PDF 1.4 writer: vector graphics (lines, rectangles), base-14 Helvetica/Helvetica-Bold
-// text, and baseline JPEG image embedding — just enough to lay out print-ready pages, with no
-// npm dependency. Deliberately small: no embedded (non-base-14) fonts, no PNG support, no
-// compression. If this ever needs more, reach for a real PDF library instead of growing this
-// file — see docs/PACKET-GENERATOR.md "What ships today."
+// text, and JPEG/PNG image embedding — just enough to lay out print-ready pages, with no npm
+// dependency. Deliberately small: no embedded (non-base-14) fonts, no compression of its own
+// text/vector content. If this ever needs more, reach for a real PDF library instead of growing
+// this file — see docs/PACKET-GENERATOR.md "What ships today."
 //
 // No 'server-only' guard here on purpose, unlike its callers (packet-compiler.ts, etc.): this
 // module touches no secrets or env vars — it's pure Buffer/string manipulation — and the guard
@@ -104,8 +104,82 @@ export function parseJpegDimensions(data: Uint8Array): JpegInfo {
   throw new Error('No SOF marker found — not a readable JPEG.');
 }
 
-interface ImageDraw { x: number; y: number; w: number; h: number; name: string }
-interface PageImage { name: string; data: Uint8Array; info: JpegInfo }
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+function isPng(data: Uint8Array): boolean {
+  return data.length >= 8 && PNG_SIGNATURE.every((b, i) => data[i] === b);
+}
+function isJpeg(data: Uint8Array): boolean {
+  return data.length >= 2 && data[0] === 0xff && data[1] === 0xd8;
+}
+
+export interface PngInfo { width: number; height: number; colorType: 0 | 2; idat: Uint8Array }
+
+function readUint32BE(data: Uint8Array, offset: number): number {
+  return ((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]) >>> 0;
+}
+
+/**
+ * Reads IHDR (width/height/bit depth/color type) and concatenates the IDAT chunks of a PNG.
+ * Only 8-bit, non-interlaced grayscale or RGB (no alpha, no palette) is supported — covers a
+ * plain white-background illustration, which is all this needs; anything else throws so the
+ * caller can fall back rather than embed something wrong.
+ *
+ * The IDAT bytes are returned *as-is* (still zlib-deflated, still PNG-filtered per scanline) —
+ * PDF's `/Filter /FlateDecode` with a PNG `/Predictor` (10–15) is exactly PNG's own IDAT layout,
+ * so a PDF reader undoes both the compression and the per-row filtering itself. No decoding here.
+ */
+export function parsePngInfo(data: Uint8Array): PngInfo {
+  if (!isPng(data)) throw new Error('Not a PNG (bad signature).');
+  let offset = 8;
+  let width = 0, height = 0, bitDepth = 0, colorType = -1, interlace = 0;
+  const idatChunks: Uint8Array[] = [];
+  while (offset + 8 <= data.length) {
+    const length = readUint32BE(data, offset);
+    const type = String.fromCharCode(data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7]);
+    const chunkStart = offset + 8;
+    if (type === 'IHDR') {
+      width = readUint32BE(data, chunkStart);
+      height = readUint32BE(data, chunkStart + 4);
+      bitDepth = data[chunkStart + 8];
+      colorType = data[chunkStart + 9];
+      interlace = data[chunkStart + 12];
+    } else if (type === 'IDAT') {
+      idatChunks.push(data.subarray(chunkStart, chunkStart + length));
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset = chunkStart + length + 4; // + 4 for the CRC we don't need
+  }
+  if (bitDepth !== 8) throw new Error(`Unsupported PNG bit depth: ${bitDepth} (only 8-bit is supported).`);
+  if (colorType !== 0 && colorType !== 2) throw new Error(`Unsupported PNG color type: ${colorType} (only grayscale/RGB without alpha).`);
+  if (interlace !== 0) throw new Error('Interlaced PNGs are not supported.');
+  if (!idatChunks.length) throw new Error('PNG has no IDAT data.');
+  const idat = idatChunks.length === 1 ? idatChunks[0] : concatBytes(idatChunks);
+  return { width, height, colorType: colorType as 0 | 2, idat };
+}
+
+function concatBytes(chunks: Uint8Array[]): Uint8Array {
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const c of chunks) { out.set(c, pos); pos += c.length; }
+  return out;
+}
+
+/** Whether `image()` can embed these bytes — checks the format is readable, not that it decodes correctly. */
+export function canEmbedImage(data: Uint8Array): boolean {
+  try {
+    if (isJpeg(data)) { parseJpegDimensions(data); return true; }
+    if (isPng(data)) { parsePngInfo(data); return true; }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+type PageImage =
+  | { name: string; format: 'jpeg'; data: Uint8Array; width: number; height: number; components: 1 | 3 | 4 }
+  | { name: string; format: 'png'; data: Uint8Array; width: number; height: number; components: 1 | 3 };
 
 class Page {
   ops: string[] = [];
@@ -139,11 +213,18 @@ class Page {
     this.ops.push(opts.fillColor && opts.borderColor ? 'B' : opts.fillColor ? 'f' : 'S');
   }
 
-  /** Draws a baseline/progressive JPEG scaled into the (x, y, w, h) box (PDF points, origin bottom-left). */
-  image(x: number, y: number, w: number, h: number, jpegBytes: Uint8Array) {
-    const info = parseJpegDimensions(jpegBytes);
+  /** Draws a JPEG or PNG (8-bit, non-interlaced, no alpha) scaled into (x, y, w, h), PDF points, origin bottom-left. */
+  image(x: number, y: number, w: number, h: number, imageBytes: Uint8Array) {
     const name = `Im${this.images.length}`;
-    this.images.push({ name, data: jpegBytes, info });
+    if (isJpeg(imageBytes)) {
+      const info = parseJpegDimensions(imageBytes);
+      this.images.push({ name, format: 'jpeg', data: imageBytes, width: info.width, height: info.height, components: info.components });
+    } else if (isPng(imageBytes)) {
+      const info = parsePngInfo(imageBytes);
+      this.images.push({ name, format: 'png', data: info.idat, width: info.width, height: info.height, components: info.colorType === 0 ? 1 : 3 });
+    } else {
+      throw new Error('Unsupported image format — expected JPEG or PNG.');
+    }
     this.ops.push(`q ${w.toFixed(2)} 0 0 ${h.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)} cm /${name} Do Q`);
   }
 }
@@ -202,9 +283,12 @@ export class PdfDocument {
     this.pages.forEach((page, i) => {
       page.images.forEach((img, j) => {
         beginObject(imageObjNums[i][j]);
-        const colorSpace = img.info.components === 1 ? 'DeviceGray' : img.info.components === 4 ? 'DeviceCMYK' : 'DeviceRGB';
-        push(`<< /Type /XObject /Subtype /Image /Width ${img.info.width} /Height ${img.info.height} ` +
-             `/ColorSpace /${colorSpace} /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.data.length} >>\nstream\n`);
+        const colorSpace = img.components === 1 ? 'DeviceGray' : img.components === 4 ? 'DeviceCMYK' : 'DeviceRGB';
+        const filter = img.format === 'jpeg'
+          ? '/Filter /DCTDecode'
+          : `/Filter /FlateDecode /DecodeParms << /Predictor 15 /Colors ${img.components} /BitsPerComponent 8 /Columns ${img.width} >>`;
+        push(`<< /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} ` +
+             `/ColorSpace /${colorSpace} /BitsPerComponent 8 ${filter} /Length ${img.data.length} >>\nstream\n`);
         pushBytes(img.data);
         push('\nendstream\nendobj\n');
       });
