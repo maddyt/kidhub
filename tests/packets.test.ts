@@ -70,11 +70,13 @@ test('packetSummary: Primary plane gets label strips, no definition cards', () =
   assert.equal(summary.definitionCards, 0);
 });
 
-test('packetSummary: Elementary planes get definition cards instead', () => {
+test('packetSummary: Elementary planes get definition cards instead, never label strips', () => {
   const lower = packetSummary(validManifest({ developmental_plane: 'lower_elementary_6_9' }));
   assert.equal(lower.definitionCards, 6);
+  assert.equal(lower.labelStrips, 0);
   const upper = packetSummary(validManifest({ developmental_plane: 'upper_elementary_9_12' }));
   assert.equal(upper.definitionCards, 6);
+  assert.equal(upper.labelStrips, 0);
 });
 
 test('every subject has a color and every plane has display info', () => {

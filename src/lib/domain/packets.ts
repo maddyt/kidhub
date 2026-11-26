@@ -149,22 +149,25 @@ export function scanForDisallowedLanguage(manifest: PacketManifest): string[] {
 
 export interface PacketSummary {
   vocabularyTermCount: number;
-  controlCards: number;
   labelStrips: number;
   definitionCards: number;
   hasStoryHook: true;
   hasControlOfErrorActivity: true;
 }
 
-/** What the compiled PDF will contain, for the "packet overview" summary shown before download. */
+/**
+ * What the compiled PDF will contain, for the "packet overview" summary shown before download.
+ * Must mirror the branch in src/lib/pdf/packet-compiler.ts (Primary → label strips,
+ * everything else → duplex definition cards) — labelStrips and definitionCards are mutually
+ * exclusive, never both non-zero for the same manifest.
+ */
 export function packetSummary(manifest: PacketManifest): PacketSummary {
   const n = manifest.vocabulary_set.length;
-  const includeDefinitionCards = manifest.developmental_plane !== 'primary_3_6';
+  const isPrimary = manifest.developmental_plane === 'primary_3_6';
   return {
     vocabularyTermCount: n,
-    controlCards: n,
-    labelStrips: n,
-    definitionCards: includeDefinitionCards ? n : 0,
+    labelStrips: isPrimary ? n : 0,
+    definitionCards: isPrimary ? 0 : n,
     hasStoryHook: true,
     hasControlOfErrorActivity: true,
   };
