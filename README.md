@@ -63,7 +63,7 @@ The login page then shows one-click buttons for Owner, Director, Teacher, Parent
 
 See [`docs/PILOT.md`](docs/PILOT.md) for a one-week pilot plan to run with the school.
 
-Building for Montessori schools? See [`docs/PRD-MONTESSORI.md`](docs/PRD-MONTESSORI.md): curriculum progress (Presented / Practicing / Mastered), observations, portfolios, progress reports and conferences, and msphere parity.
+Building for Montessori schools? See [`docs/PRD-MONTESSORI.md`](docs/PRD-MONTESSORI.md): curriculum progress (Presented / Practicing / Mastered), observations, portfolios, progress reports and conferences, and msphere parity. Teachers and families can also turn a curiosity question into a printable Montessori packet at **Packet Generator** in the nav — see [`docs/PACKET-GENERATOR.md`](docs/PACKET-GENERATOR.md).
 
 Switching from Brightwheel, Tadpoles or WatchMeGrow? See [`docs/MIGRATION.md`](docs/MIGRATION.md) for exporting data, onboarding families, moving billing and moving the classroom cameras.
 
@@ -124,10 +124,13 @@ npm run build
 ```
 
 ```
-supabase/migrations/   Schema, RLS policies, RPCs, storage policies (one file)
-src/lib/domain/        Pure logic: time zones, care timers, ratios, daily report, billing, alerts
+supabase/migrations/   Schema, RLS policies, RPCs, storage policies (one file per migration)
+src/lib/domain/        Pure logic: time zones, care timers, ratios, daily report, billing, alerts, packets
 src/lib/data/          Supabase queries (run as the signed-in user; RLS applies)
-src/lib/ai/            AI assistant context + Claude API call
+src/lib/ai/            Claude calls: the assistant, and the Packet Generator's manifest + image judge
+src/lib/images/        Pluggable illustration provider for the Packet Generator (unconfigured by default)
+src/lib/pdf/           The Packet Generator's PDF compiler and its own small PDF writer (no dependency)
+src/lib/packets/       The Packet Generator's end-to-end pipeline
 src/app/(app)/         Staff screens and /family/* parent screens
 scripts/seed-demo.mts  Demo data
 tests/                 Unit tests + database policy tests
@@ -139,7 +142,7 @@ Stack: Next.js 15 (App Router, server actions), Supabase (Postgres, auth, storag
 
 ## Status and roadmap
 
-**Built and tested:** attendance with pickup validation, care log and timers, daily reports, milestones/portfolio, enrollment and waitlist, medical/allergy info, staff clock-in with per-room ratios, timesheet CSV for payroll, certifications, recurring and split billing, year-end statements, announcements, realtime messaging, photo approval, camera schedules with family approval, multi-school owner view, alerts, and the AI assistant.
+**Built and tested:** attendance with pickup validation, care log and timers, daily reports, milestones/portfolio, enrollment and waitlist, medical/allergy info, staff clock-in with per-room ratios, timesheet CSV for payroll, certifications, recurring and split billing, year-end statements, announcements, realtime messaging, photo approval, camera schedules with family approval, multi-school owner view, alerts, the AI assistant, and the Packet Generator (text-only Montessori packets today; see [`docs/PACKET-GENERATOR.md`](docs/PACKET-GENERATOR.md)).
 
 **Verified:** typecheck, production build, 16 unit tests, 23 database tests (policies, MFA enforcement, audit, rate limits), and browser walkthroughs of every role against Postgres 16 + PostgREST, both before and after `0002_security.sql` is applied. CI runs the automated checks on every push. **Not verifiable here:** your live Supabase project and email delivery.
 
