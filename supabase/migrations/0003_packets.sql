@@ -54,7 +54,7 @@ create index packet_assets_request on packet_assets (request_id);
 -- school_id is the RLS boundary for this table; pin it so a request can never be moved between
 -- schools (RLS's WITH CHECK alone can't see the pre-update row to compare against).
 create or replace function touch_packet_request() returns trigger
-language plpgsql as $$ begin
+language plpgsql set search_path = public as $$ begin
   if new.school_id <> old.school_id then raise exception 'packet_requests.school_id cannot change'; end if;
   new.updated_at := now();
   return new;
