@@ -1,5 +1,3 @@
-// Runs in CI (needs node_modules for the 'server-only' import), not in a sandbox without npm
-// access — see docs/PACKET-GENERATOR.md. Verified there with a standalone offline check instead.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PdfDocument, parseJpegDimensions, hexColor, rgb } from '../src/lib/pdf/pdf-writer.ts';

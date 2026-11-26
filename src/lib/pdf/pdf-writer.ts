@@ -1,10 +1,13 @@
-import 'server-only';
-
 // A minimal PDF 1.4 writer: vector graphics (lines, rectangles), base-14 Helvetica/Helvetica-Bold
 // text, and baseline JPEG image embedding — just enough to lay out print-ready pages, with no
 // npm dependency. Deliberately small: no embedded (non-base-14) fonts, no PNG support, no
 // compression. If this ever needs more, reach for a real PDF library instead of growing this
 // file — see docs/PACKET-GENERATOR.md "What ships today."
+//
+// No 'server-only' guard here on purpose, unlike its callers (packet-compiler.ts, etc.): this
+// module touches no secrets or env vars — it's pure Buffer/string manipulation — and the guard
+// package itself throws when imported outside Next's build pipeline, which would make
+// tests/pdf-writer.test.ts unrunnable even with real node_modules in CI.
 
 export type RGB = { r: number; g: number; b: number }; // each 0–1
 export const rgb = (r: number, g: number, b: number): RGB => ({ r, g, b });
