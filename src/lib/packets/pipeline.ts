@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { generateManifest } from '../ai/packets.ts';
 import { compilePacketPdf } from '../pdf/packet-compiler.ts';
 import { createPacketRequest, markCompiled, markFailed, markManifestReady, uploadPacketPdf } from '../data/packets.ts';
+import { generateIllustrations } from './illustrations.ts';
 import type { Plane, Subject } from '../domain/packets.ts';
 
 export interface RunPacketPipelineInput {
@@ -14,9 +15,12 @@ export type RunPacketPipelineResult = { ok: true; id: string } | { ok: false; id
 
 /**
  * The whole three-subsystem pipeline, run synchronously in one request: Subsystem A (manifest),
- * Subsystem C (PDF compile — text-only until an image provider exists, see src/lib/images/provider.ts).
- * A Vercel function can afford this because, without Subsystem B's image calls, it finishes in a
- * few seconds; once illustrations are wired in this should move to a background job instead.
+ * Subsystem B (illustrations, parallelized and capped — see src/lib/packets/illustrations.ts;
+ * a no-op if no provider is configured), Subsystem C (PDF compile). This still fits in one Vercel
+ * function call because B runs in parallel rather than per-term in sequence, but it's close:
+ * the route exports `maxDuration = 60` (src/app/(app)/packets/actions.ts and family/packets/
+ * actions.ts) to give the manifest call and the illustration batch room. If packets start timing
+ * out, split this into a background job instead of raising that further.
  */
 export async function runPacketPipeline(supabase: SupabaseClient, input: RunPacketPipelineInput): Promise<RunPacketPipelineResult> {
   const created = await createPacketRequest(supabase, {
@@ -34,7 +38,9 @@ export async function runPacketPipeline(supabase: SupabaseClient, input: RunPack
     if (!manifestResult.ok) { await markFailed(supabase, id, manifestResult.error); return { ok: false, id, error: manifestResult.error }; }
     await markManifestReady(supabase, id, manifestResult.manifest);
 
-    const { bytes, pageCount } = await compilePacketPdf(manifestResult.manifest, input.schoolName);
+    const illustrations = await generateIllustrations(supabase, input.schoolId, id, manifestResult.manifest);
+
+    const { bytes, pageCount } = await compilePacketPdf(manifestResult.manifest, input.schoolName, illustrations);
     const path = await uploadPacketPdf(supabase, input.schoolId, id, bytes);
     await markCompiled(supabase, id, path, pageCount);
     return { ok: true, id };

@@ -72,3 +72,17 @@ export async function uploadPacketPdf(supabase: SupabaseClient, schoolId: string
   if (error) throw new Error(`Packet PDF upload failed: ${error.message}`);
   return path;
 }
+
+export async function uploadPacketImage(supabase: SupabaseClient, schoolId: string, requestId: string, termName: string, bytes: Uint8Array): Promise<string> {
+  const slug = termName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '') || 'term';
+  const path = `${schoolId}/${requestId}/${slug}-${crypto.randomUUID().slice(0, 8)}.jpg`;
+  const { error } = await supabase.storage.from('packets').upload(path, bytes, { contentType: 'image/jpeg' });
+  if (error) throw new Error(`Illustration upload failed: ${error.message}`);
+  return path;
+}
+
+export async function insertPacketAsset(supabase: SupabaseClient, requestId: string, termName: string, kind: 'base' | 'highlight', imagePath: string | null, vlmPass: boolean, vlmNotes: string, attempt: number) {
+  return supabase.from('packet_assets').insert({
+    request_id: requestId, term_name: termName, kind, image_path: imagePath, vlm_pass: vlmPass, vlm_notes: vlmNotes.slice(0, 500), attempt,
+  });
+}

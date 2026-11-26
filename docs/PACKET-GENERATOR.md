@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Built (M1 of the scope below); illustrated cards pending an image-gen provider |
+| **Status** | Built, including illustrated picture cards via fal.ai/FLUX (set `FAL_API_KEY` to enable) |
 | **Replaces** | [PRD-MONTESSORI.md §7 F16](PRD-MONTESSORI.md#f16-printable-templates-and-exports) ("Printable templates and exports") with a real feature |
 | **Origin** | Adapted from an external "Automated Montessori Fabrication Engine" PRD, fit to KidHub's existing schema, auth and AI integration instead of the Python/GCS/SIS stack it originally specified |
 
@@ -23,17 +23,19 @@ Instead: reuse `is_staff` / `is_full_guardian` RLS, the `media`-bucket storage p
 | Source spec (Subsystem) | This build |
 |---|---|
 | A — Curriculum agent + fact-check gate | **Shipped.** `src/lib/ai/packets.ts`: Claude drafts the manifest against a strict shape (`src/lib/domain/packets.ts`), with one repair retry on a validation failure, plus a deny-list scan for grading/ranking/comparison language (reusing the rule already in PRD-MONTESSORI.md §8). |
-| B — Illustrations + SAM2 segmentation + VLM judge | **Judge shipped, images pending.** `judgeIllustration()` reuses Claude's own vision input instead of a separate VLM API — no code to write there. `src/lib/images/provider.ts` is a clean seam for a real provider; until one is configured, the pipeline simply skips illustrated cards. SAM2 segmentation was dropped: once a provider exists, ask it directly for a "highlight only X in crimson, nothing else changes" variant and let the judge catch failures, rather than running a GPU segmentation model from Vercel. |
-| C — ReportLab/WeasyPrint PDF compiler | **Shipped, rebuilt.** Python PDF libraries don't run on Vercel. `src/lib/pdf/packet-compiler.ts` renders the same card geometry (control/picture/label-strip/definition-card sizes, 0.25pt crop marks, duplex-mirrored backs) on top of a small hand-rolled PDF writer (`src/lib/pdf/pdf-writer.ts`) — added with no new npm dependency after `pdf-lib` turned out to be unreachable from this environment's network; if that changes, swapping in a real PDF library instead of growing the hand-rolled one is the better long-term move. |
+| B — Illustrations + SAM2 segmentation + VLM judge | **Shipped**, minus SAM2. `src/lib/images/provider.ts` calls fal.ai (FLUX Schnell) via plain `fetch` — chosen over a GPU segmentation pipeline for the same reason SAM2 was dropped (see below), and because it's a synchronous single-call API (no job polling) that typically returns in a few seconds. `judgeIllustration()` (`src/lib/ai/packets.ts`) reuses Claude's own vision input as the VLM judge rather than a separate API. `src/lib/packets/illustrations.ts` generates + judges up to `MAX_ILLUSTRATED_TERMS` (4) terms **in parallel**, 2 attempts each, and simply skips a term that fails every attempt or comes back in a format the PDF writer can't embed (PNG) — the packet still compiles without it. Runs for free with no provider configured (`imageGenerationConfigured()` short-circuits). |
+| C — ReportLab/WeasyPrint PDF compiler | **Shipped, rebuilt, now embeds images.** Python PDF libraries don't run on Vercel. `src/lib/pdf/packet-compiler.ts` renders the same card geometry (control/picture/label-strip/definition-card sizes, 0.25pt crop marks, duplex-mirrored backs) on top of a small hand-rolled PDF writer (`src/lib/pdf/pdf-writer.ts`) — added with no new npm dependency after `pdf-lib` turned out to be unreachable from this environment's network. `pdf-writer.ts` now also embeds baseline/progressive JPEGs directly as DCTDecode Image XObjects (parsing width/height from the JPEG's own SOF marker, no decoding of pixel data) — PNG isn't supported, so a non-JPEG result from the provider is dropped rather than mishandled. If this needs more than that, swap in a real PDF library instead of growing the hand-rolled one. |
 
-Without an image provider, a packet today is: a story/cover page, label strips (Primary) or duplex definition cards (Elementary — front term + phonetic breakdown, back reveals the definition as a self-check), and the Control of Error activity with its verification key on the back. No illustrated picture/control cards yet — `imageGenerationConfigured()` gates that, and the UI says so plainly rather than pretending otherwise.
+A packet with `FAL_API_KEY` set gets, per illustrated term (up to 4): a picture card (the FLUX illustration + the term name), in addition to the existing label strips (Primary) or duplex definition cards (Elementary) and the Control of Error activity. Without a key, it's exactly the text-only packet described above — `imageGenerationConfigured()` gates the picture cards and the UI's "no image provider configured" notice, and nothing else changes.
+
+**Known simplification:** the source spec's "parts-of" anatomical sets call for one base illustration plus a pixel-identical crimson-highlighted variant per term (via SAM2 segmentation). This build generates one illustration per term and does not also generate a separate highlighted variant — doing so would double the image calls (cost and the time budget below) for a feature with no real usage data yet. `highlight_region` is still in the manifest and `generateIllustration()`/`judgeIllustration()` both already accept a highlight instruction, so adding the second variant later is additive, not a rewrite.
 
 ## 4. Cut from the source spec, and why
 
 - **FERPA/SIS/SOC 2 dashboards, PowerSchool sync** — the packet pipeline needs no student PII to run; KidHub's existing privacy/audit posture already covers the one place it touches real data (an optional `child_id` tag). Re-add only if a school specifically asks.
 - **Director "Curiosity Leaderboard" analytics, governance toggles** — v2 material once there's real usage to show.
-- **SAM2 segmentation** — see §3.
-- **Background job queue for the image pipeline** — not needed yet because there's no image pipeline running; revisit once Subsystem B goes live, since a multi-image generate→judge→retry loop will likely exceed a single Vercel request's comfortable duration.
+- **SAM2 segmentation** — see §3; FLUX is prompted directly for a highlighted variant instead, with the VLM judge catching an illustration that drifted too far.
+- **A background job queue for the image pipeline** — `src/lib/packets/illustrations.ts` generates all illustrations for one packet in parallel (`Promise.allSettled`) rather than queuing them, so the whole request still fits in one Vercel function call (`maxDuration = 60` on both packet-request actions). This is a real time budget, not a generous one: watch for timeouts as usage grows, and move to a background job before raising `MAX_ILLUSTRATED_TERMS` or adding the highlighted-variant pass above.
 
 ## 5. Guardrails already in place
 
@@ -43,6 +45,7 @@ Without an image provider, a packet today is: a story/cover page, label strips (
 
 ## 6. Open follow-ups
 
-1. Pick and wire an image-generation provider in `src/lib/images/provider.ts`, then move the pipeline to a background job before enabling it broadly.
-2. Once PRD-MONTESSORI.md's curriculum library (F2) ships, add a nullable `lesson_id` to `packet_requests` so a packet can attach to a real lesson instead of a free-text topic, and surface "Generate a packet for this" from F3.5's "Ready for next" suggestions.
-3. Re-run `npm run typecheck`, `npm test`, `npm run test:db` and `npm run build` once `npm install` can reach the registry from wherever this is deployed — it couldn't from this session's sandbox (see the PR description), so this change is verified structurally (a standalone byte-level check of the PDF writer, saved as `sample-packet.pdf`) and via the existing domain test suite, but not through the project's full pipeline.
+1. If usage grows: move image generation to a background job instead of inline in the request, and/or raise `MAX_ILLUSTRATED_TERMS` past 4 — not before, given the `maxDuration = 60` budget.
+2. Add the highlighted-variant pass (base image + a separate crimson-highlighted image per term) once there's real usage to justify doubling the image calls — see §3's "Known simplification."
+3. Once PRD-MONTESSORI.md's curriculum library (F2) ships, add a nullable `lesson_id` to `packet_requests` so a packet can attach to a real lesson instead of a free-text topic, and surface "Generate a packet for this" from F3.5's "Ready for next" suggestions.
+4. Re-run `npm run typecheck`, `npm test`, `npm run test:db` and `npm run build` once `npm install` can reach the registry from wherever this is deployed — it couldn't from this session's sandbox, so changes here are verified structurally (standalone byte-level checks of the PDF writer, including image embedding) and via the existing domain test suite, but not through the project's full pipeline. `tests/pdf-writer.test.ts` and `tests/db/*.test.ts` need real `node_modules` and only run in CI for the same reason.

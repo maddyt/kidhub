@@ -8,6 +8,10 @@ import { runPacketPipeline } from '@/lib/packets/pipeline.ts';
 import { getPacketRequest } from '@/lib/data/packets.ts';
 import type { ActionResult } from '@/components/ActionForm.tsx';
 
+// Generating illustrations (Subsystem B, parallelized but still real network calls) pushes this
+// past Vercel's default 10s function limit; see the note on runPacketPipeline.
+export const maxDuration = 60;
+
 export async function requestPacket(_: ActionResult, form: FormData): Promise<ActionResult> {
   const ctx = await requireStaff();
   const topic = String(form.get('topic') ?? '').trim();

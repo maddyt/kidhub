@@ -5,11 +5,11 @@ import {
   type PacketManifest,
 } from '../domain/packets.ts';
 
-// Subsystem C: assembles the validated manifest into a print-ready, duplex-mirrored PDF using
-// a small hand-rolled writer (src/lib/pdf/pdf-writer.ts) — no illustrations yet (see
-// src/lib/images/provider.ts), so this renders every text-based material the source spec calls
-// for: label strips (Primary), definition cards (Elementary), the Cosmic Story Hook, and the
-// Control of Error activity with its self-verification key on the back.
+// Subsystem C: assembles the validated manifest into a print-ready, duplex-mirrored PDF using a
+// small hand-rolled writer (src/lib/pdf/pdf-writer.ts): label strips (Primary), definition cards
+// (Elementary), the Cosmic Story Hook, the Control of Error activity with its self-verification
+// key on the back, and — when the pipeline supplies accepted illustrations (src/lib/packets/
+// pipeline.ts) — a picture card per illustrated term.
 
 const TRIM_GRAY = hexColor('#D1D5DB');
 const INK = rgb(0.067, 0.094, 0.153);
@@ -47,7 +47,13 @@ function mirrorColumn(col: number, cols: number): number {
 
 export interface CompileResult { bytes: Uint8Array; pageCount: number }
 
-export async function compilePacketPdf(manifest: PacketManifest, schoolName?: string): Promise<CompileResult> {
+/**
+ * `illustrations` maps a vocabulary term's exact name to an accepted (VLM-judged) JPEG image —
+ * only JPEGs, since the hand-rolled PDF writer doesn't decode PNG (see pdf-writer.ts). Terms with
+ * no entry simply don't get a picture card; everything else in the packet compiles the same
+ * whether or not any illustrations exist.
+ */
+export async function compilePacketPdf(manifest: PacketManifest, schoolName?: string, illustrations?: Map<string, Uint8Array>): Promise<CompileResult> {
   const doc = new PdfDocument();
   const barColor = hexColor(SUBJECT_COLOR[manifest.subject_category]);
   const plane = PLANE_INFO[manifest.developmental_plane];
@@ -55,6 +61,7 @@ export async function compilePacketPdf(manifest: PacketManifest, schoolName?: st
   addCoverPage(doc, manifest, barColor, plane.label, schoolName);
   if (manifest.developmental_plane === 'primary_3_6') addLabelStripPages(doc, manifest, barColor);
   else addDefinitionCardPages(doc, manifest, barColor);
+  if (illustrations?.size) addPictureCardPages(doc, manifest, barColor, illustrations);
   addActivityPages(doc, manifest, barColor);
 
   return { bytes: doc.save(), pageCount: doc.pageCount };
@@ -129,6 +136,31 @@ function drawDefinitionBack(page: PdfPage, term: { term_name: string; redacted_d
   const revealed = term.redacted_definition.replace('_____', term.term_name);
   page.text(x + pad, y + h - 26, 'Self-check', { size: 10, font: 'Helvetica-Bold', color: MUTED });
   drawWrapped(page, revealed, x + pad, y + h - 42, 12, w - pad * 2, 1.4);
+}
+
+/** One illustrated picture card per term that has an accepted image: image on top, name below. */
+function addPictureCardPages(doc: PdfDocument, m: PacketManifest, barColor: RGB, illustrations: Map<string, Uint8Array>) {
+  const { w, h } = CARD_GEOMETRY.controlCard;
+  const cols = 2, rows = 2, perPage = cols * rows;
+  const gapX = (LETTER.w - PAGE_MARGIN * 2 - cols * w) / (cols - 1 || 1);
+  const gapY = (LETTER.h - PAGE_MARGIN * 2 - rows * h) / (rows - 1 || 1);
+  const illustrated = m.vocabulary_set.filter((t) => illustrations.has(t.term_name));
+
+  for (let i = 0; i < illustrated.length; i += perPage) {
+    const page = doc.addPage(LETTER.w, LETTER.h);
+    illustrated.slice(i, i + perPage).forEach((term, idx) => {
+      const col = idx % cols, row = Math.floor(idx / cols);
+      const x = PAGE_MARGIN + col * (w + gapX);
+      const y = LETTER.h - PAGE_MARGIN - (row + 1) * h - row * gapY;
+      drawCardFrame(page, x, y, w, h, barColor);
+      const labelHeight = 36;
+      const imagePad = 8;
+      page.image(x + imagePad, y + labelHeight, w - imagePad * 2, h - labelHeight - imagePad, illustrations.get(term.term_name)!);
+      const size = 16;
+      const textW = textWidth('Helvetica-Bold', term.term_name, size);
+      page.text(x + (w - textW) / 2, y + labelHeight / 2 - size / 3, term.term_name, { size, font: 'Helvetica-Bold', color: INK });
+    });
+  }
 }
 
 function addActivityPages(doc: PdfDocument, m: PacketManifest, barColor: RGB) {
