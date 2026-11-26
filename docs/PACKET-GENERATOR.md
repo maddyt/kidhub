@@ -12,6 +12,14 @@ A teacher or a full guardian types a curiosity question — *"Parts of a honeybe
 
 It lives at **Packet Generator** in the staff nav and **Packet Generator** under My family, backed by `supabase/migrations/0003_packets.sql`.
 
+The form also offers **Find existing PDFs**, independently of generation. Set the server-only
+`BRAVE_SEARCH_API_KEY` to enable Brave Search. Searching sends the entered topic, subject and age
+range to Brave, so do not enter personal information in the topic. No child ID or school data is
+sent. Searches are limited to 30 per user per hour. Results are external PDF links, not stored,
+downloaded or vetted by KidHub: availability, price, licensing, safety and age-appropriateness
+must be checked by the adult. Search results can be incomplete, and generation still works if
+search is unconfigured or unavailable.
+
 ## 2. Why fold it into KidHub rather than ship it standalone
 
 The source PRD proposed a separate product: its own personas, its own FERPA/COPPA/SOC 2 compliance dashboard, SIS roster sync, a Python/LangChain backend, GCS storage and a GPU segmentation model (SAM2). That's enterprise scaffolding for a tool that itself states it needs zero student PII — and it would rebuild auth, tenancy and AI plumbing KidHub already has.

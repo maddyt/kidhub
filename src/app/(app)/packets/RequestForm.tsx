@@ -1,7 +1,8 @@
 'use client';
-import { ActionForm, type ActionResult } from '@/components/ActionForm.tsx';
-import { SubmitButton } from '@/components/SubmitButton.tsx';
+import { startTransition, useActionState, useEffect, useRef } from 'react';
+import type { ActionResult } from '@/components/ActionForm.tsx';
 import { PLANES, SUBJECTS, PLANE_INFO } from '@/lib/domain/packets.ts';
+import { findExistingPdfs } from './search-actions.ts';
 
 const SUBJECT_LABEL: Record<string, string> = {
   geography: 'Geography', botany: 'Botany', zoology: 'Zoology', anatomy: 'Anatomy', physics: 'Physics',
@@ -14,8 +15,12 @@ export function RequestForm({ action, children, childRequired = false }: {
   /** Family mode: the requester has no school-wide roster, so a child must be picked. */
   childRequired?: boolean;
 }) {
+  const [state, generate, generating] = useActionState(action, null);
+  const [search, findPdfs, searching] = useActionState(findExistingPdfs, null);
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => { if (state?.ok) ref.current?.reset(); }, [state]);
   return (
-    <ActionForm action={action} className="space-y-4" resetOnSuccess>
+    <form ref={ref} action={generate} className="space-y-4">
       <label className="block">
         <span className="label">What is the child curious about?</span>
         <input name="topic" className="input" placeholder="e.g. Parts of a honeybee" maxLength={200} required />
@@ -50,7 +55,40 @@ export function RequestForm({ action, children, childRequired = false }: {
         </label>
       )}
 
-      <SubmitButton pendingText="Compiling… (usually a few seconds)">Generate packet</SubmitButton>
-    </ActionForm>
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" className="btn-primary" disabled={generating || searching}>
+          {generating ? 'Compiling… (usually a few seconds)' : 'Generate packet'}
+        </button>
+        <button type="button" onClick={() => {
+          if (ref.current) {
+            const form = new FormData(ref.current);
+            startTransition(() => findPdfs(form));
+          }
+        }} className="btn-secondary" disabled={generating || searching}>
+          {searching ? 'Searching…' : 'Find existing PDFs'}
+        </button>
+      </div>
+      <p className="text-xs text-muted">Searching sends the topic, age range and subject to Brave Search. Do not include personal information.</p>
+      {state?.error && <p className="text-sm text-danger" role="alert">{state.error}</p>}
+      {state?.message && <p className="text-sm text-ok" role="status">{state.message}</p>}
+      {search?.error && <p className="text-sm text-danger" role="alert">{search.error}</p>}
+      {search?.suggestions && (
+        <section aria-live="polite" className="space-y-2">
+          <h3 className="font-medium">PDF search results for “{search.topic}”</h3>
+          <p className="text-xs text-muted">External results may not be free, suitable, or available. Review each resource and its terms before use.</p>
+          {search.suggestions.length === 0 ? <p className="text-sm">No matching PDFs found. Try another topic.</p> : (
+            <ul className="space-y-3">
+              {search.suggestions.map((result) => (
+                <li key={result.url} className="text-sm">
+                  <a href={result.url} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-dark hover:underline">{result.title}</a>
+                  <p className="break-all text-xs text-muted">{new URL(result.url).hostname}</p>
+                  {result.description && <p className="text-muted">{result.description}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </form>
   );
 }
