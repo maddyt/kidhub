@@ -68,10 +68,16 @@ export async function generateManifest(topic: string, plane: Plane, subject: Sub
     const result = validateManifest(parsed);
     if (!result.ok) { errors = result.errors; continue; }
 
-    const flagged = scanForDisallowedLanguage(result.manifest);
+    // topic/plane/subject are already known from the request — set them from there rather than
+    // trusting the model to echo them back correctly. It has gotten the plane wrong before
+    // (matching enum value, wrong one), which silently changed which cards the PDF compiler
+    // produces (label strips vs. definition cards) since that choice keys off this field.
+    const manifest: PacketManifest = { ...result.manifest, topic, developmental_plane: plane, subject_category: subject };
+
+    const flagged = scanForDisallowedLanguage(manifest);
     if (flagged.length) { errors = flagged.map((f) => `Evaluative/comparative language is not allowed: ${f}`); continue; }
 
-    return { ok: true, manifest: result.manifest };
+    return { ok: true, manifest };
   }
   return { ok: false, error: `Could not produce a valid manifest after retrying: ${errors.join('; ')}` };
 }
