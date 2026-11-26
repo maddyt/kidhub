@@ -26,17 +26,20 @@ export async function runPacketPipeline(supabase: SupabaseClient, input: RunPack
   if ('error' in created) return { ok: false, id: null, error: created.error };
   const { id } = created;
 
-  const manifestResult = await generateManifest(input.topic, input.plane, input.subject);
-  if (!manifestResult.ok) { await markFailed(supabase, id, manifestResult.error); return { ok: false, id, error: manifestResult.error }; }
-  await markManifestReady(supabase, id, manifestResult.manifest);
-
+  // Belt and suspenders: generateManifest and compilePacketPdf already turn their own failures
+  // into a result rather than throwing, but a request should never crash the page it was made
+  // from — any surprise here still ends the request as "failed" instead of an unhandled 500.
   try {
+    const manifestResult = await generateManifest(input.topic, input.plane, input.subject);
+    if (!manifestResult.ok) { await markFailed(supabase, id, manifestResult.error); return { ok: false, id, error: manifestResult.error }; }
+    await markManifestReady(supabase, id, manifestResult.manifest);
+
     const { bytes, pageCount } = await compilePacketPdf(manifestResult.manifest, input.schoolName);
     const path = await uploadPacketPdf(supabase, input.schoolId, id, bytes);
     await markCompiled(supabase, id, path, pageCount);
     return { ok: true, id };
   } catch (e) {
-    const message = e instanceof Error ? e.message : 'PDF compilation failed.';
+    const message = e instanceof Error ? e.message : 'Something went wrong compiling this packet.';
     await markFailed(supabase, id, message);
     return { ok: false, id, error: message };
   }
