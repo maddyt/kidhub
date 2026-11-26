@@ -32,7 +32,7 @@ before(async () => {
 
 test('a teacher can create and read a packet request for their own school', async () => {
   await as(db, U.teachA, async (q) => {
-    const ins = await q(
+    const ins = await q<{ id: string }>(
       `insert into packet_requests (school_id, requested_by, topic, developmental_plane) values ($1, $2, 'Parts of a bee', 'primary_3_6') returning id`,
       [SA, U.teachA]);
     reqId = ins.rows[0].id;
@@ -61,7 +61,7 @@ test('a stranger sees nothing and cannot insert', async () => {
 
 test('a full guardian can create and read a packet for their own child, scoped to that child', async () => {
   await as(db, U.parentA, async (q) => {
-    const ins = await q(
+    const ins = await q<{ id: string }>(
       `insert into packet_requests (school_id, child_id, requested_by, topic, developmental_plane) values ($1, $2, $3, 'Why do leaves change color?', 'lower_elementary_6_9') returning id`,
       [SA, KID_A, U.parentA]);
     const { rows } = await q('select * from packet_requests where id = $1', [ins.rows[0].id]);
@@ -82,7 +82,7 @@ test('school_id is pinned: a request cannot be moved to another school', async (
 test('packet_assets inherit visibility from their packet_requests row', async () => {
   let assetId = '';
   await as(db, U.teachA, async (q) => {
-    const ins = await q(`insert into packet_assets (request_id, term_name, kind) values ($1, 'Deck', 'base') returning id`, [reqId]);
+    const ins = await q<{ id: string }>(`insert into packet_assets (request_id, term_name, kind) values ($1, 'Deck', 'base') returning id`, [reqId]);
     assetId = ins.rows[0].id;
   });
   await as(db, U.teachB, async (q) => {
