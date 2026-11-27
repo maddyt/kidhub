@@ -48,7 +48,13 @@ export async function generateManifest(topic: string, plane: Plane, subject: Sub
     try {
       response = await client.beta.messages.create({
         model: env.anthropicModel(),
-        max_tokens: 4000,
+        // Two consecutive "not valid JSON" failures on the same (longer) Lower/Upper Elementary
+        // manifest pointed at truncation: at 'medium' effort, reasoning tokens count against
+        // max_tokens, so 4000 could leave too little room for the actual JSON once reasoning ran
+        // long, cutting the response off mid-object (which fails JSON.parse, looking identical
+        // to a genuinely malformed response). Raised well past the ~1,000-token manifests
+        // actually need, to give reasoning real headroom without the output silently truncating.
+        max_tokens: 8000,
         output_config: { effort: 'medium' },
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
@@ -60,6 +66,7 @@ export async function generateManifest(topic: string, plane: Plane, subject: Sub
       return { ok: false, error: `The AI service returned an error: ${message}` };
     }
     if (response.stop_reason === 'refusal') return { ok: false, error: 'The assistant declined to generate this packet. Try rephrasing the topic.' };
+    if (response.stop_reason === 'max_tokens') { errors = ['The response was cut off before finishing (hit the token limit).']; continue; }
     const text = response.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('\n').trim();
     const jsonText = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
 
