@@ -128,7 +128,7 @@ supabase/migrations/   Schema, RLS policies, RPCs, storage policies (one file pe
 src/lib/domain/        Pure logic: time zones, care timers, ratios, daily report, billing, alerts, packets
 src/lib/data/          Supabase queries (run as the signed-in user; RLS applies)
 src/lib/ai/            Claude calls: the assistant, and the Packet Generator's manifest + image judge
-src/lib/images/        The Packet Generator's illustration provider (fal.ai/FLUX or Gemini; unconfigured by default)
+src/lib/images/        The Packet Generator's illustration provider (Gemini or fal.ai/FLUX; unconfigured by default)
 src/lib/pdf/           The Packet Generator's PDF compiler and its own small PDF writer (no dependency)
 src/lib/packets/       The Packet Generator's end-to-end pipeline
 src/app/(app)/         Staff screens and /family/* parent screens

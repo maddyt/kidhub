@@ -1,21 +1,25 @@
 import 'server-only';
 
 /**
- * Subsystem B (illustration generation). Two providers, switched with IMAGE_PROVIDER ('fal',
- * the default, or 'gemini') so they can be A/B compared without a code change:
+ * Subsystem B (illustration generation). Two providers, switched with IMAGE_PROVIDER ('gemini',
+ * the default, or 'fal') so they can be A/B compared without a code change:
  *
+ * - Google Gemini (Nano Banana 2 / gemini-3.1-flash-image), the default: a single synchronous
+ *   call (generateContent). First real comparison run: 4 of 4 illustrations passed the VLM judge
+ *   on the first attempt, no retries needed — clean white backgrounds, no embedded text.
  * - fal.ai (FLUX Schnell): a single synchronous REST call (fal.run blocks until the image is
- *   ready, no job polling), typically returns in a few seconds, returns JPEG.
- * - Google Gemini (Nano Banana 2 / gemini-3.1-flash-image): also a single synchronous call
- *   (generateContent), returns PNG. Needs pdf-writer.ts's PNG support (added alongside this) to
- *   be embeddable — it can't just fall back to "not JPEG, skip" the way it used to.
+ *   ready, no job polling), typically returns in a few seconds, but its instruction-following was
+ *   weak even after tightening the prompt — around 1 in 4 illustrations passed the same judge in
+ *   the same comparison run. Kept as a fallback option, not the default, until it's worth another
+ *   look (see docs/PACKET-GENERATOR.md).
  *
- * No npm dependency for either: plain fetch, same pattern as every other integration here.
+ * Both can return JPEG or PNG depending on the response; pdf-writer.ts embeds either.
+ * No npm dependency for either provider: plain fetch, same pattern as every other integration here.
  */
 export type ImageProvider = 'fal' | 'gemini';
 
 function activeProvider(): ImageProvider {
-  return (process.env.IMAGE_PROVIDER ?? 'fal').toLowerCase() === 'gemini' ? 'gemini' : 'fal';
+  return (process.env.IMAGE_PROVIDER ?? 'gemini').toLowerCase() === 'fal' ? 'fal' : 'gemini';
 }
 
 export function imageGenerationConfigured(): boolean {
