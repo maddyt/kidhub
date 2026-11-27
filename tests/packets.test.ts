@@ -60,8 +60,21 @@ test('scanForDisallowedLanguage flags comparative/evaluative language, not plain
   const clean = validManifest();
   assert.deepEqual(scanForDisallowedLanguage(clean), []);
 
-  const flagged = validManifest({ cosmic_story_hook: 'This child is far ahead of average classmates in every way, more than words can say here today.' });
+  const flagged = validManifest({ cosmic_story_hook: 'This child is so far ahead of their classmates, more than words can say here today in this little tale.' });
   assert.ok(scanForDisallowedLanguage(flagged).length > 0);
+});
+
+// A real manifest failed this check: a honeybee wing was correctly described as attached
+// "behind" another wing, a purely spatial use of a word the deny-list also treats as
+// comparative. Scientific writing routinely uses "behind", "average" and "%" this way.
+test('scanForDisallowedLanguage does not flag ordinary anatomical/scientific language', () => {
+  const m = validManifest({
+    vocabulary_set: [{
+      term_name: 'Wing',
+      redacted_definition: 'A _____ is a thin, clear flap attached behind the first one, making a pair that beats together. A honeybee uses about 20 percent of its body weight in flight muscle, and the average bee lives about six weeks.',
+    }, ...validManifest().vocabulary_set.slice(1)],
+  });
+  assert.deepEqual(scanForDisallowedLanguage(m), []);
 });
 
 test('packetSummary: Primary plane gets label strips, no definition cards', () => {

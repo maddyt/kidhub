@@ -131,10 +131,25 @@ export function validateManifest(data: unknown): ValidationResult {
 /**
  * KidHub's existing Montessori AI rule (docs/PRD-MONTESSORI.md §8): never grade, rank or compare
  * a child. Flags family-facing text for review rather than silently editing it.
+ *
+ * These are phrases, not bare words: a real manifest failed on this check because a honeybee's
+ * wing was correctly described as attached "behind" another wing — a purely spatial use of a
+ * word that also has a comparative meaning. Anatomy and scientific writing routinely uses
+ * "behind", "ahead of", "average" and "%" in entirely innocent senses (the average lifespan of a
+ * bee, a wing carrying 20% of its body weight), so each pattern below is anchored to the
+ * child/peer-comparison phrasing it's actually meant to catch, not the word alone.
  */
 const DISALLOWED_LANGUAGE = [
-  'smarter than', 'behind', 'ahead of', 'average', 'below average', 'above average',
-  'gifted', '\\biq\\b', 'grade:', 'score:', 'percent', '%', 'ranked',
+  'smarter than',
+  'behind (his|her|their) (peers|classmates|age group)',
+  'ahead of (his|her|their) (peers|classmates|age group)',
+  '(below|above) average for (his|her|their) age',
+  'gifted',
+  '\\biq\\b',
+  'grade:',
+  'score:',
+  'percentile',
+  'ranked',
 ];
 const DISALLOWED_RE = new RegExp(DISALLOWED_LANGUAGE.join('|'), 'i');
 
