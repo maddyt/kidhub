@@ -13,7 +13,7 @@ export const LIMITS = {
   signupIp: [5, 60 * 60], joinIp: [10, 60 * 60], acceptUser: [20, 60 * 60],
   demoSetupIp: [10, 60 * 60], forgotIp: [5, 60 * 60], forgotEmail: [3, 60 * 60],
   assistantUser: [40, 60 * 60], videoUser: [240, 60 * 60], mfaUser: [10, 10 * 60],
-  packetUser: [10, 60 * 60],
+  packetUser: [10, 60 * 60], packetSearchUser: [30, 60 * 60],
 } as const satisfies Record<string, readonly [number, number]>;
 
 /**

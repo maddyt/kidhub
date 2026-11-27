@@ -44,6 +44,7 @@ No email setup is needed to get started. Accounts are created by invitation link
 | `NEXT_PUBLIC_DEMO_MODE` | `true` while trying it out, `false` for real use |
 | `DEMO_PASSWORD` | password for the demo accounts |
 | `ANTHROPIC_API_KEY` | optional; turns on the AI assistant |
+| `BRAVE_SEARCH_API_KEY` | optional; enables external PDF suggestions in Packet Generator |
 
 3. **Deploy.** Vercel's daily cron (in `vercel.json`) issues recurring invoices each morning.
 
