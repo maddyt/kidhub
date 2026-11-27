@@ -2,6 +2,20 @@ import { PLANE_INFO, type Plane, type Subject } from '../domain/packets.ts';
 
 export type PdfSuggestion = { title: string; url: string; description: string };
 
+/** Brave highlights matched terms with raw HTML (`<strong>…</strong>`) and HTML-escapes entities in its snippets; strip both before this text ever reaches the page. */
+function cleanSnippet(s: string): string {
+  return s
+    .replace(/<[^>]*>/g, '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec: string) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .trim();
+}
+
 /** Search results are links, not downloaded or verified PDFs. */
 export async function searchPdfSuggestions(
   apiKey: string, topic: string, plane: Plane, subject: Subject, fetcher: typeof fetch = fetch,
@@ -34,7 +48,9 @@ export async function searchPdfSuggestions(
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password || !/\.pdf$/i.test(parsed.pathname)) continue;
     if (seen.has(parsed.href)) continue;
     seen.add(parsed.href);
-    results.push({ title: title.trim(), url: parsed.href, description: typeof description === 'string' ? description : '' });
+    const cleanTitle = cleanSnippet(title);
+    if (!cleanTitle) continue;
+    results.push({ title: cleanTitle, url: parsed.href, description: typeof description === 'string' ? cleanSnippet(description) : '' });
     if (results.length === 5) break;
   }
   return results;
